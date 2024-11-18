@@ -174,7 +174,6 @@ int main(void) {
     // TimerOn();
 
     while (1) {
-        // serial_println("hey");
     }
 
     return 0;
