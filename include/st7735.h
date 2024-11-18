@@ -1,5 +1,6 @@
 #ifndef ST7735_H
 #define ST7735_H
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
@@ -70,8 +71,8 @@ void fillScreen(uint16_t color) {
     setRowAddress(1, 130);
     SendCommand(0x2C); // RAMWR - Memory Write
     for (int i = 0; i < 130 * 130; i++) {
-        SendData(color >> 8);    // High byte
-        SendData(color & 0xFF);  // Low byte
+        SendData(color >> 8);
+        SendData(color & 0xFF);
     }
 }
 
@@ -94,7 +95,7 @@ void ST7735_init() {
     _delay_ms(200);
     //COLMOD - Interface pixel format
     SendCommand(0x3A);
-    SendData(0x05); // 16 BIT COLOR MODE - change to 0x05
+    SendData(0x05); // 16 BIT COLOR MODE
     _delay_ms(10);
     SendCommand(0x36);
     SendData(0x00);

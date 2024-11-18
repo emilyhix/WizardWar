@@ -76,8 +76,7 @@ int main(void) {
     // TimerSet(GCD_PERIOD);
     // TimerOn();
 
-    while (1) {
-    }
+    while (1) {}
 
     return 0;
 }
