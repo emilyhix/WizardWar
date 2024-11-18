@@ -97,8 +97,6 @@ void ST7735_init() {
     SendCommand(0x3A);
     SendData(0x05); // 16 BIT COLOR MODE
     _delay_ms(10);
-    SendCommand(0x36);
-    SendData(0x00);
     fillScreen(0x0000);
     //DISPON - Display on
     SendCommand(0x29);

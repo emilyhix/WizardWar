@@ -3,6 +3,7 @@
 #include "periph.h"
 #include "spiAVR.h"
 #include "st7735.h"
+#include "screenPrint.h"
 
 #include "serialATmega.h"
 
@@ -46,15 +47,16 @@ int main(void) {
     SPI_INIT();
     ST7735_init();
 
-    createPixel(45,8, 0xa6c7);
-    createPixel(45,9, 0xa6c7);
-    createPixel(45,10, 0xa6c7);
-    createPixel(45,11, 0xa6c7);
-    createPixel(45,12, 0xa6c7);
-    createPixel(45,13, 0xa6c7);
-    createPixel(45,14, 0xa6c7);
-    createPixel(45,15, 0xa6c7);
-    createPixel(45,16, 0xa6c7);
+    printTitle();
+    // createPixel(45,8, 0xa6c7);
+    // createPixel(45,9, 0xa6c7);
+    // createPixel(45,10, 0xa6c7);
+    // createPixel(45,11, 0xa6c7);
+    // createPixel(45,12, 0xa6c7);
+    // createPixel(45,13, 0xa6c7);
+    // createPixel(45,14, 0xa6c7);
+    // createPixel(45,15, 0xa6c7);
+    // createPixel(45,16, 0xa6c7);
 
     //Initialize Buzzer
     // OCR0A = 128; //sets duty cycle to 50% since TOP is always 256
