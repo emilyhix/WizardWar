@@ -912,6 +912,7 @@ void printTitle() {
                     createPixel(i, y, WHITE);
                 }
                 ++bufferAdd;
+                bitShifter = bitShifter >> 1;
             }
         }
     }
