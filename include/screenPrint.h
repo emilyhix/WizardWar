@@ -58,17 +58,137 @@ void printTitle() {
     }
 }
 
-void printOther() {
-    // use this function to print only certain coordinates of the screen
-    uint8_t coordinates[10][2] = {};
-    // coordinates[numb of total pixels][2]
-    
-    for (int i = 0; i < 10; ++i) {
-        //ADJUST LENGTH BASED ON NUMBER OF PIXELS
-        uint8_t x = coordinates[i][1];
-        uint8_t y = coordinates[i][0];
-        createPixel(x,y, WHITE);
+void printWizard(uint8_t whichWizard) {
+    uint16_t lightRobeColor = 0;
+    uint16_t darkRobeColor = 0;
+    uint8_t xBuffer = 0;
+    uint8_t yBuffer = 0;
+
+    if (whichWizard == 1) {
+        // blue wizard
+        lightRobeColor = LIGHT_BLUE;
+        darkRobeColor = DARK_BLUE;
+        xBuffer = 0; // CHANGE
+        yBuffer = 0; // CHANGE
     }
+    if (whichWizard == 2) {
+        // green wizard
+        lightRobeColor = LIGHT_GREEN;
+        darkRobeColor = DARK_GREEN;
+        xBuffer = 0; // CHANGE
+        yBuffer = 0; // CHANGE
+    }
+    if (whichWizard == 3) {
+        // red wizard
+        lightRobeColor = LIGHT_RED;
+        darkRobeColor = DARK_RED;
+        xBuffer = 0; // CHANGE
+        yBuffer = 0; // CHANGE
+    }
+
+    // ------------------------ DARK ROBE
+        
+        uint8_t darkRobe[10][2] = {};
+        // CHANGE NUMBER OF ELEMENTS, FIRST []
+
+        for (int i = 0; i < 10; ++i) {
+        //ADJUST LENGTH BASED ON ELEMENT ABOVE
+            uint8_t DRx = darkRobe[i][1];
+            uint8_t DRy = darkRobe[i][0];
+            createPixel(DRx+xBuffer,DRy+yBuffer, darkRobeColor);
+        }
+
+    // ------------------------
+
+    // ------------------------ LIGHT ROBE
+
+        uint8_t lightRobe[10][2] = {};
+        // CHANGE NUMBER OF ELEMENTS, FIRST []
+
+        for (int i = 0; i < 10; ++i) {
+        //ADJUST LENGTH BASED ON ELEMENT ABOVE
+            uint8_t LRx = lightRobe[i][1];
+            uint8_t LRy = lightRobe[i][0];
+            createPixel(LRx+xBuffer,LRy+yBuffer, lightRobeColor);
+        }
+
+    // ------------------------
+
+    // ------------------------ SKIN
+        
+        uint8_t skin[10][2] = {};
+        // CHANGE NUMBER OF ELEMENTS, FIRST []
+
+        for (int i = 0; i < 10; ++i) {
+        //ADJUST LENGTH BASED ON ELEMENT ABOVE
+            uint8_t Sx = skin[i][1];
+            uint8_t Sy = skin[i][0];
+            createPixel(Sx+xBuffer,Sy+yBuffer, SKIN_COLOR);
+        }
+
+    // ------------------------
+
+    // ------------------------ BEARD
+        
+        uint8_t beard[10][2] = {};
+        // CHANGE NUMBER OF ELEMENTS, FIRST []
+
+        for (int i = 0; i < 10; ++i) {
+        //ADJUST LENGTH BASED ON ELEMENT ABOVE
+            uint8_t Bx = beard[i][1];
+            uint8_t By = beard[i][0];
+            createPixel(Bx+xBuffer,By+yBuffer, GREY);
+        }
+
+    // ------------------------
+
+    // ------------------------ EYE UP
+        
+        uint8_t eyeUp[1][2] = {};
+
+        uint8_t EUx = eyeUp[1][1];
+        uint8_t EUy = eyeUp[1][0];
+        createPixel(EUx+xBuffer,EUy+yBuffer, UP_EYE);
+        
+    // ------------------------
+
+    // ------------------------ EYE DOWN
+
+        uint8_t eyeDown[1][2] = {};
+
+        uint8_t EDx = eyeDown[1][1];
+        uint8_t EDy = eyeDown[1][0];
+        createPixel(EDx+xBuffer,EDy+yBuffer, DOWN_EYE);
+
+    // ------------------------
+
+    // ------------------------ STAFF LIGHT
+
+        uint8_t staffLight[10][2] = {};
+        // CHANGE NUMBER OF ELEMENTS, FIRST []
+
+        for (int i = 0; i < 10; ++i) {
+        //ADJUST LENGTH BASED ON ELEMENT ABOVE
+            uint8_t SLx = staffLight[i][1];
+            uint8_t SLy = staffLight[i][0];
+            createPixel(SLx+xBuffer,SLy+yBuffer, LIGHT_BROWN);
+        }
+
+    // ------------------------
+
+    // ------------------------ STAFF DARK
+        
+        uint8_t staffDark[10][2] = {};
+        // CHANGE NUMBER OF ELEMENTS, FIRST []
+
+        for (int i = 0; i < 10; ++i) {
+        //ADJUST LENGTH BASED ON ELEMENT ABOVE
+            uint8_t SDx = staffDark[i][1];
+            uint8_t SDy = staffDark[i][0];
+            createPixel(SDx+xBuffer,SDy+yBuffer, DARK_BROWN);
+        }
+
+    // ------------------------
 }
 
 #endif

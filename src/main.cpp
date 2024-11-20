@@ -9,6 +9,7 @@
 
 uint8_t gameMode = 0; // 0 - title, 1 - walking, 2 - interaction, 3 - game over
 uint8_t roomNumber = 0; // 0 - main, 1 - , 2 - , 3 - 
+bool select = 0;
 
 #define NUM_TASKS 5
 
@@ -208,6 +209,7 @@ int TickFct_UpdateMode(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_UM:
+            //title screen
             break;
 
         default:
@@ -217,6 +219,7 @@ int TickFct_UpdateMode(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_UM:
+            gameMode = 0;
             break;
 
         default:
