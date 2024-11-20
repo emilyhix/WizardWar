@@ -61,29 +61,29 @@ void printTitle() {
 void printWizard(uint8_t whichWizard) {
     uint16_t lightRobeColor = 0;
     uint16_t darkRobeColor = 0;
-    uint8_t xBuffer = 0;
-    uint8_t yBuffer = 0;
+    int xBuffer = 0;
+    int yBuffer = 0;
 
     if (whichWizard == 1) {
         // blue wizard
         lightRobeColor = LIGHT_BLUE;
         darkRobeColor = DARK_BLUE;
-        xBuffer = 0; // CHANGE
-        yBuffer = 0; // CHANGE
+        xBuffer = -21;
+        yBuffer = -63;
     }
     if (whichWizard == 2) {
         // green wizard
         lightRobeColor = LIGHT_GREEN;
         darkRobeColor = DARK_GREEN;
-        xBuffer = 0; // CHANGE
-        yBuffer = 0; // CHANGE
+        xBuffer = 42;
+        yBuffer = -84;
     }
     if (whichWizard == 3) {
         // red wizard
         lightRobeColor = LIGHT_RED;
         darkRobeColor = DARK_RED;
-        xBuffer = 0; // CHANGE
-        yBuffer = 0; // CHANGE
+        xBuffer = 42;
+        yBuffer = -21;
     }
 
     // ------------------------ DARK ROBE
