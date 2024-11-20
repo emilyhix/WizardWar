@@ -29,7 +29,7 @@ void SendData(char data) {
     PORTB = SetBit(PORTB, 2, 1);
 }
 
-void setColumnAddress(uint8_t &columnStart, uint8_t &columnEnd) {
+void setColumnAddress(uint8_t columnStart, uint8_t columnEnd) {
     //CASET - Set Column Address
     SendCommand(0x2A);
     // send high byte
@@ -42,7 +42,7 @@ void setColumnAddress(uint8_t &columnStart, uint8_t &columnEnd) {
     SendData(columnEnd & 0xFF);
 }
 
-void setRowAddress(uint8_t &rowStart, uint8_t &rowEnd) {
+void setRowAddress(uint8_t rowStart, uint8_t rowEnd) {
     //RASET - Set Row Address
     SendCommand(0x2B);
     // send high byte
@@ -55,7 +55,7 @@ void setRowAddress(uint8_t &rowStart, uint8_t &rowEnd) {
     SendData(rowEnd & 0xFF);
 }
 
-void createPixel(uint8_t &x, uint8_t &y, uint16_t colorVal) {
+void createPixel(uint8_t x, uint8_t y, uint16_t colorVal) {
     setRowAddress(y, y);
     setColumnAddress(x, x);
     //RAMWR - Memory Write
@@ -67,13 +67,13 @@ void createPixel(uint8_t &x, uint8_t &y, uint16_t colorVal) {
 }
 
 void fillScreen(uint16_t color) {
-    // setColumnAddress(1, 130);
-    // setRowAddress(1, 130);
-    // SendCommand(0x2C); // RAMWR - Memory Write
-    // for (int i = 0; i < 130 * 130; i++) {
-    //     SendData(color >> 8);
-    //     SendData(color & 0xFF);
-    // }
+    setColumnAddress(1, 130);
+    setRowAddress(1, 130);
+    SendCommand(0x2C); // RAMWR - Memory Write
+    for (int i = 0; i < 130 * 130; i++) {
+        SendData(color >> 8);
+        SendData(color & 0xFF);
+    }
 }
 
 void HardwareReset() {
