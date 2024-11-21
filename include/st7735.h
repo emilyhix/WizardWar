@@ -7,7 +7,7 @@
 #include "helper.h"
 #include "spiAVR.h"
 
-void SendCommand(char command) {
+void SendCommand(uint16_t command) {
     // set command mode
     PORTB = SetBit(PORTB, 1, 0);
     // set SS pin to low
@@ -18,7 +18,7 @@ void SendCommand(char command) {
     PORTB = SetBit(PORTB, 2, 1);
 }
 
-void SendData(char data) {
+void SendData(uint16_t data) {
     // set command mode
     PORTB = SetBit(PORTB, 1, 1);
     // set SS pin to low
@@ -29,7 +29,7 @@ void SendData(char data) {
     PORTB = SetBit(PORTB, 2, 1);
 }
 
-void setColumnAddress(uint8_t columnStart, uint8_t columnEnd) {
+void setColumnAddress(uint16_t columnStart, uint16_t columnEnd) {
     //CASET - Set Column Address
     SendCommand(0x2A);
     // send high byte
@@ -42,7 +42,7 @@ void setColumnAddress(uint8_t columnStart, uint8_t columnEnd) {
     SendData(columnEnd & 0xFF);
 }
 
-void setRowAddress(uint8_t rowStart, uint8_t rowEnd) {
+void setRowAddress(uint16_t rowStart, uint16_t rowEnd) {
     //RASET - Set Row Address
     SendCommand(0x2B);
     // send high byte
@@ -55,15 +55,16 @@ void setRowAddress(uint8_t rowStart, uint8_t rowEnd) {
     SendData(rowEnd & 0xFF);
 }
 
-void createPixel(uint8_t x, uint8_t y, uint16_t colorVal) {
+void createPixel(uint16_t x, uint16_t y, uint16_t colorVal) {
     setRowAddress(y, y);
     setColumnAddress(x, x);
     //RAMWR - Memory Write
     SendCommand(0x2C);
-    //send color low byte
-    SendData(colorVal & 0xFF);
     //send color high byte
     SendData(colorVal >> 8);
+    //send color low byte
+    SendData(colorVal & 0xFF);
+    
 }
 
 void fillScreen(uint16_t color) {
@@ -97,13 +98,13 @@ void ST7735_init() {
     SendCommand(0x3A);
     SendData(0x05); // 16 BIT COLOR MODE
     _delay_ms(10);
-    SendCommand(0x36);  // MADCTL - Memory Data Access Control
-    SendData(0x28);     // Set RGB mode (set bit 3 to 1)
+    // SendCommand(0x36);  // MADCTL - Memory Data Access Control
+    // SendData(0x28);     // Set RGB mode (set bit 3 to 1)
     _delay_ms(10);
-    fillScreen(0x0000);
     //DISPON - Display on
     SendCommand(0x29);
     _delay_ms(200);
+    fillScreen(0x0000);
 }
 
 #endif
