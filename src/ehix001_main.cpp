@@ -2,8 +2,7 @@
 #include "helper.h"
 #include "periph.h"
 #include "spiAVR.h"
-#include "st7735.h"
-#include "screenPrint.h"
+#include "ehix001_screenPrint.cpp"
 
 #include "serialATmega.h"
 
@@ -66,15 +65,6 @@ int main(void) {
     SPI_INIT();
     ST7735_init();
 
-    // createPixel(45,8, 0xa6c7);
-    // createPixel(45,9, 0xa6c7);
-    // createPixel(45,10, 0xa6c7);
-    // createPixel(45,11, 0xa6c7);
-    // createPixel(45,12, 0xa6c7);
-    // createPixel(45,13, 0xa6c7);
-    // createPixel(45,14, 0xa6c7);
-    // createPixel(45,15, 0xa6c7);
-    // createPixel(45,16, 0xa6c7);
     //Initialize Buzzer
     // OCR0A = 128; //sets duty cycle to 50% since TOP is always 256
     // TCCR0A |= (1 << COM0A1);// use Channel A
@@ -85,12 +75,6 @@ int main(void) {
     // TCCR1B |= (1 << WGM12) | (1 << WGM13) | (1 << CS11); //CS11 sets the prescaler to be 8
     // ICR1 = 39999; //20ms pwm period
 
-    // unsigned char i = 0;
-    // tasks[i].state = AC_INIT;
-    // tasks[i].period = AmberCountPeriod;
-    // tasks[i].elapsedTime = tasks[i].period;
-    // tasks[i].TickFct = &TickFct_AmberCount;
-    // ++i;
     unsigned char i = 0;
     tasks[i].state = INIT_PS;
     tasks[i].period = PrintScreenPeriod;
@@ -117,8 +101,6 @@ int main(void) {
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_UpdateMode;
 
-    // TimerSet(GCD_PERIOD);
-    // TimerOn();
     TimerSet(GCD_PERIOD);
     TimerOn();
 
@@ -126,23 +108,28 @@ int main(void) {
 
     return 0;
 }
+
 int TickFct_PrintScreen(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_PS:
-                    printWizard(1);
-
+            fillScreen(0x000);
+            printWizard(1);
             state=WAIT;
             break;
+
         case WAIT:
-            state = WAIT;
+            state = WAIT2;
             break;
         
         case WAIT2:
-            state=INIT_PS;
+            fillScreen(0x000);
+            printWizard(3);
+            state=WAIT3;
             break;
 
         case WAIT3:
+            state= INIT_PS;
             break;
         
         default:
@@ -158,8 +145,6 @@ int TickFct_PrintScreen(int state) {
             break;
 
         case WAIT2:
-            fillScreen(0x000);
-            printWizard(3);
             break;
 
         case WAIT3:
@@ -170,6 +155,7 @@ int TickFct_PrintScreen(int state) {
     }
     return state;
 }
+
 int TickFct_SelectButton(int state) {
     switch (state) {
         //STATE TRANSITIONS
@@ -188,6 +174,7 @@ int TickFct_SelectButton(int state) {
     }
     return state;
 }
+
 int TickFct_JoystickInput(int state) {
     switch (state) {
         //STATE TRANSITIONS
@@ -206,6 +193,7 @@ int TickFct_JoystickInput(int state) {
     }
     return state;
 }
+
 int TickFct_PlayerCoords(int state) {
     switch (state) {
         //STATE TRANSITIONS
@@ -224,6 +212,7 @@ int TickFct_PlayerCoords(int state) {
     }
     return state;
 }
+
 int TickFct_UpdateMode(int state) {
     switch (state) {
         //STATE TRANSITIONS
