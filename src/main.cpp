@@ -9,7 +9,6 @@
 
 uint8_t gameMode = 0; // 0 - title, 1 - walking, 2 - interaction, 3 - game over
 uint8_t roomNumber = 0; // 0 - main, 1 - , 2 - , 3 - 
-bool select = 0;
 
 #define NUM_TASKS 5
 
@@ -19,13 +18,13 @@ int TickFct_JoystickInput(int);
 int TickFct_PlayerCoords(int);
 int TickFct_UpdateMode(int);
 
-enum States_PrintScreen {INIT_PS, WAIT};
+enum States_PrintScreen {INIT_PS, WAIT, WAIT2, WAIT3};
 enum States_SelectButton {INIT_SB};
 enum States_JoystickInput {INIT_JI};
 enum States_PlayerCoords {INIT_PC};
 enum States_UpdateMode{INIT_UM};
 
-const unsigned long PrintScreenPeriod = 200;
+const unsigned long PrintScreenPeriod = 2000;
 const unsigned long SelectButtonPeriod = 200;
 const unsigned long JoystickInputPeriod = 500;
 const unsigned long PlayerCoordsPeriod = 200;
@@ -52,7 +51,7 @@ void TimerISR() {
 }
 
 int main(void) {
-    
+
     //Initialize PORTC as output
     DDRC = 0xFF;
     PORTC = 0x00;
@@ -64,10 +63,18 @@ int main(void) {
     PORTB = 0x00;
 
     // ADC_init();
-    serial_init(9600);
     SPI_INIT();
     ST7735_init();
 
+    // createPixel(45,8, 0xa6c7);
+    // createPixel(45,9, 0xa6c7);
+    // createPixel(45,10, 0xa6c7);
+    // createPixel(45,11, 0xa6c7);
+    // createPixel(45,12, 0xa6c7);
+    // createPixel(45,13, 0xa6c7);
+    // createPixel(45,14, 0xa6c7);
+    // createPixel(45,15, 0xa6c7);
+    // createPixel(45,16, 0xa6c7);
     //Initialize Buzzer
     // OCR0A = 128; //sets duty cycle to 50% since TOP is always 256
     // TCCR0A |= (1 << COM0A1);// use Channel A
@@ -78,6 +85,12 @@ int main(void) {
     // TCCR1B |= (1 << WGM12) | (1 << WGM13) | (1 << CS11); //CS11 sets the prescaler to be 8
     // ICR1 = 39999; //20ms pwm period
 
+    // unsigned char i = 0;
+    // tasks[i].state = AC_INIT;
+    // tasks[i].period = AmberCountPeriod;
+    // tasks[i].elapsedTime = tasks[i].period;
+    // tasks[i].TickFct = &TickFct_AmberCount;
+    // ++i;
     unsigned char i = 0;
     tasks[i].state = INIT_PS;
     tasks[i].period = PrintScreenPeriod;
@@ -104,6 +117,8 @@ int main(void) {
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_UpdateMode;
 
+    // TimerSet(GCD_PERIOD);
+    // TimerOn();
     TimerSet(GCD_PERIOD);
     TimerOn();
 
@@ -111,18 +126,25 @@ int main(void) {
 
     return 0;
 }
-
 int TickFct_PrintScreen(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_PS:
-            state = WAIT;
-            break;
+                    printWizard(1);
 
+            state=WAIT;
+            break;
         case WAIT:
             state = WAIT;
             break;
+        
+        case WAIT2:
+            state=INIT_PS;
+            break;
 
+        case WAIT3:
+            break;
+        
         default:
             state = INIT_PS;
             break;
@@ -130,24 +152,29 @@ int TickFct_PrintScreen(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_PS:
-            printTitle();
             break;
         
         case WAIT:
             break;
 
+        case WAIT2:
+            fillScreen(0x000);
+            printWizard(3);
+            break;
+
+        case WAIT3:
+            break;
+        
         default:
             break;
     }
     return state;
 }
-
 int TickFct_SelectButton(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_SB:
             break;
-
         default:
             state = INIT_SB;
             break;
@@ -156,19 +183,16 @@ int TickFct_SelectButton(int state) {
         //STATE ACTIONS
         case INIT_SB:
             break;
-
         default:
             break;
     }
     return state;
 }
-
 int TickFct_JoystickInput(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_JI:
             break;
-
         default:
             state = INIT_JI;
             break;
@@ -177,19 +201,16 @@ int TickFct_JoystickInput(int state) {
         //STATE ACTIONS
         case INIT_JI:
             break;
-
         default:
             break;
     }
     return state;
 }
-
 int TickFct_PlayerCoords(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_PC:
             break;
-
         default:
             state = INIT_PC;
             break;
@@ -198,20 +219,16 @@ int TickFct_PlayerCoords(int state) {
         //STATE ACTIONS
         case INIT_PC:
             break;
-
         default:
             break;
     }
     return state;
 }
-
 int TickFct_UpdateMode(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_UM:
-            //title screen
             break;
-
         default:
             state = INIT_UM;
             break;
@@ -219,9 +236,7 @@ int TickFct_UpdateMode(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_UM:
-            gameMode = 0;
             break;
-
         default:
             break;
     }

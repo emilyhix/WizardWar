@@ -60,15 +60,15 @@ void createPixel(uint8_t x, uint8_t y, uint16_t colorVal) {
     setColumnAddress(x, x);
     //RAMWR - Memory Write
     SendCommand(0x2C);
-    //send color low byte
-    SendData(colorVal & 0xFF);
     //send color high byte
     SendData(colorVal >> 8);
+    //send color low byte
+    SendData(colorVal & 0xFF);
 }
 
 void fillScreen(uint16_t color) {
-    setColumnAddress(1, 130);
-    setRowAddress(1, 130);
+    setColumnAddress(1, 131);
+    setRowAddress(1, 131);
     SendCommand(0x2C); // RAMWR - Memory Write
     for (int i = 0; i < 130 * 130; i++) {
         SendData(color >> 8);
@@ -97,13 +97,15 @@ void ST7735_init() {
     SendCommand(0x3A);
     SendData(0x05); // 16 BIT COLOR MODE
     _delay_ms(10);
-    SendCommand(0x36);  // MADCTL - Memory Data Access Control
-    SendData(0x28);     // Set RGB mode (set bit 3 to 1)
+    // MADCTL - Memory Data Access Control
+    SendCommand(0x36);
+    SendData(0x20); // Set RGB mode (set bit 3 to 1)s
     _delay_ms(10);
-    fillScreen(0x0000);
-    //DISPON - Display on
+    // DISPON - Display on
     SendCommand(0x29);
     _delay_ms(200);
+    // FILL SCREEN (set display to black)
+    fillScreen(0x0000);
 }
 
 #endif
