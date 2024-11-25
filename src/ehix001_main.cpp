@@ -16,25 +16,28 @@
 uint8_t gameMode = 0; // 0 - title, 1 - walking, 2 - interaction, 3 - game over
 uint8_t roomNumber = 0; // 0 - main, 1 - , 2 - , 3 - 
 
-#define NUM_TASKS 5
+#define NUM_TASKS 6
 
 int TickFct_PrintScreen(int);
 int TickFct_SelectButton(int);
 int TickFct_JoystickInput(int);
 int TickFct_PlayerCoords(int);
 int TickFct_UpdateMode(int);
+int TickFct_BuzzerMusic(int);
 
 enum States_PrintScreen {INIT_PS, WAIT, WAIT2, WAIT3};
 enum States_SelectButton {INIT_SB};
 enum States_JoystickInput {INIT_JI};
 enum States_PlayerCoords {INIT_PC};
 enum States_UpdateMode{INIT_UM};
+enum States_BuzzerMusic{INIT_BM, OFF, NOTE1, NOTE2, NOTE3, NOTE4};
 
 const unsigned long PrintScreenPeriod = 2000;
 const unsigned long SelectButtonPeriod = 200;
 const unsigned long JoystickInputPeriod = 500;
 const unsigned long PlayerCoordsPeriod = 200;
 const unsigned long UpdateModePeriod = 200;
+const unsigned long BuzzerMusicPeriod = 500;
 const unsigned long GCD_PERIOD = 100;
 
 typedef struct _task{
@@ -73,15 +76,12 @@ int main(void) {
     ST7735_init();
     lcd_init();
 
-    //Initialize Buzzer
-    // OCR0A = 128; //sets duty cycle to 50% since TOP is always 256
-    // TCCR0A |= (1 << COM0A1);// use Channel A
-    // TCCR0A |= (1 << WGM01) | (1 << WGM00);// set fast PWM Mode
+    TCCR1A |= (1 << WGM11) | (1 << COM1A1); //COM1A1 sets it to channel A
+    TCCR1B |= (1 << WGM12) | (1 << WGM13) | (1 << CS11); //CS11 sets the prescaler to be 8
+    //WGM11, WGM12, WGM13 set timer to fast pwm mode
 
-    //TODO: Initialize the servo timer/pwm(timer1)
-    // TCCR1A |= (1 << WGM11) | (1 << COM1A1); //COM1A1 sets it to channel A
-    // TCCR1B |= (1 << WGM12) | (1 << WGM13) | (1 << CS11); //CS11 sets the prescaler to be 8
-    // ICR1 = 39999; //20ms pwm period
+    ICR1 = 39999; //20ms pwm period
+    OCR1A =  39999;
 
     unsigned char i = 0;
     tasks[i].state = INIT_PS;
@@ -108,6 +108,11 @@ int main(void) {
     tasks[i].period = UpdateModePeriod;
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_UpdateMode;
+    ++i;
+    tasks[i].state = INIT_BM;
+    tasks[i].period = BuzzerMusicPeriod;
+    tasks[i].elapsedTime = tasks[i].period;
+    tasks[i].TickFct = &TickFct_BuzzerMusic;
 
     TimerSet(GCD_PERIOD);
     TimerOn();
@@ -137,6 +142,8 @@ int TickFct_PrintScreen(int state) {
         case WAIT2:
             fillScreen(0x000);
             printWizard(3);
+            ICR1 = 7999; //20ms pwm period
+            OCR1A =  3999;
             state=WAIT3;
             break;
 
@@ -238,6 +245,66 @@ int TickFct_UpdateMode(int state) {
         //STATE ACTIONS
         case INIT_UM:
             break;
+        default:
+            break;
+    }
+    return state;
+}
+
+int TickFct_BuzzerMusic(int state) {
+    switch (state) {
+        //STATE TRANSITIONS
+        case INIT_BM:
+            ICR1 = 6825; //293Hz ~ D
+            OCR1A =  ICR1/2;
+            state = NOTE1;
+            break;
+
+        case NOTE1:
+            ICR1 = 5101; //392Hz ~ G
+            OCR1A =  ICR1/2;
+            state = NOTE2;
+            break;
+
+        case NOTE2:
+            ICR1 = 4056; //493Hz ~ B
+            OCR1A =  ICR1/2;
+            state = NOTE3;
+            break;
+
+        case NOTE3:
+            ICR1 = 5730; //349Hz ~ F
+            OCR1A =  ICR1/2;
+            state = NOTE4;
+            break;
+
+        case NOTE4:
+            ICR1 = 39999; //OFF
+            OCR1A =  39999;
+            state = INIT_BM;
+            break;
+
+        default:
+            state = INIT_BM;
+            break;
+    }
+    switch(state) {
+        //STATE ACTIONS
+        case INIT_BM:
+            break;
+
+        case NOTE1:
+            break;
+
+        case NOTE2:
+            break;
+
+        case NOTE3:
+            break;
+        
+        case NOTE4:
+            break;
+            
         default:
             break;
     }
