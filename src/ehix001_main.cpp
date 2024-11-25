@@ -13,7 +13,7 @@
 
 #include "serialATmega.h"
 
-uint8_t gameMode = 0; // 0 - title, 1 - walking, 2 - interaction, 3 - game over
+uint8_t gameMode = 1; // 0 - title, 1 - walking, 2 - interaction, 3 - game over
 uint8_t roomNumber = 0; // 0 - main, 1 - , 2 - , 3 - 
 
 #define NUM_TASKS 6
@@ -26,7 +26,7 @@ int TickFct_UpdateMode(int);
 int TickFct_BuzzerMusic(int);
 
 enum States_PrintScreen {INIT_PS, WAIT, WAIT2, WAIT3};
-enum States_SelectButton {INIT_SB};
+enum States_SelectButton {INIT_SB, PRESS};
 enum States_JoystickInput {INIT_JI};
 enum States_PlayerCoords {INIT_PC};
 enum States_UpdateMode{INIT_UM};
@@ -37,8 +37,8 @@ const unsigned long SelectButtonPeriod = 200;
 const unsigned long JoystickInputPeriod = 500;
 const unsigned long PlayerCoordsPeriod = 200;
 const unsigned long UpdateModePeriod = 200;
-const unsigned long BuzzerMusicPeriod = 500;
-const unsigned long GCD_PERIOD = 100;
+const unsigned long BuzzerMusicPeriod = 1;
+const unsigned long GCD_PERIOD = 1;
 
 typedef struct _task{
 	signed 	 char state; 		//Task's current state
@@ -61,9 +61,9 @@ void TimerISR() {
 
 int main(void) {
 
-    //Initialize PORTC as output
-    DDRC = 0xFF;
-    PORTC = 0x00;
+    //Initialize PORTC
+    DDRC = 0x08;
+    PORTC = 0xF7;
     //Initialize PORTD as output
     DDRD = 0xFF;
     PORTD = 0x00;
@@ -72,6 +72,7 @@ int main(void) {
     PORTB = 0x00;
 
     // ADC_init();
+    serial_init(9600);
     SPI_INIT();
     ST7735_init();
     lcd_init();
@@ -179,7 +180,29 @@ int TickFct_SelectButton(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_SB:
+            if ((PINC>>1) & 0x01) {
+                state = PRESS;
+            }
+            else {
+                state = INIT_SB;
+            }
             break;
+        
+        case PRESS:
+            if ((PINC>>1) & 0x01) {
+                state = PRESS;
+            }
+            else {
+                if (gameMode == 1) {
+                    gameMode = 2;
+                }
+                else {
+                    gameMode = 1;
+                }
+                state = INIT_SB;
+            }
+            break;
+        
         default:
             state = INIT_SB;
             break;
@@ -188,6 +211,10 @@ int TickFct_SelectButton(int state) {
         //STATE ACTIONS
         case INIT_SB:
             break;
+        
+        case PRESS:
+            break;
+        
         default:
             break;
     }
@@ -252,36 +279,68 @@ int TickFct_UpdateMode(int state) {
 }
 
 int TickFct_BuzzerMusic(int state) {
+    static uint16_t count, musicTime;
+
     switch (state) {
         //STATE TRANSITIONS
         case INIT_BM:
-            ICR1 = 6825; //293Hz ~ D
-            OCR1A =  ICR1/2;
-            state = NOTE1;
+            if (count < musicTime) {
+                ICR1 = 7661; //130Hz ~ C3
+                OCR1A =  ICR1/2;
+                state = INIT_BM;
+            }
+            else {
+                count = 0;
+                state = NOTE1;
+            }
             break;
-
+            
         case NOTE1:
-            ICR1 = 5101; //392Hz ~ G
-            OCR1A =  ICR1/2;
-            state = NOTE2;
+            if (count < musicTime) {
+                ICR1 = 6078; //196Hz ~ G3
+                OCR1A =  ICR1/2;
+                state = NOTE1;
+            }
+            else {
+                count = 0;
+                state = NOTE2;
+            }
             break;
 
         case NOTE2:
-            ICR1 = 4056; //493Hz ~ B
-            OCR1A =  ICR1/2;
-            state = NOTE3;
+            if (count < musicTime) {
+                ICR1 = 5101; //261Hz ~ C4
+                OCR1A =  ICR1/2;
+                state = NOTE2;
+            }
+            else {
+                count = 0;
+                state = NOTE3;
+            }
             break;
 
         case NOTE3:
-            ICR1 = 5730; //349Hz ~ F
-            OCR1A =  ICR1/2;
-            state = NOTE4;
+            if (count < musicTime) {
+                ICR1 = 5730;
+                OCR1A =  ICR1/2;
+                state = NOTE3;
+            }
+            else {
+                count = 0;
+                state = NOTE4;
+            }
             break;
 
         case NOTE4:
-            ICR1 = 39999; //OFF
-            OCR1A =  39999;
-            state = INIT_BM;
+            if (count < musicTime) {
+                ICR1 = 6078; //OFF
+                OCR1A =  ICR1/2;
+                state = NOTE4;
+            }
+            else {
+                count = 0;
+                state = INIT_BM;
+            }
             break;
 
         default:
@@ -291,18 +350,58 @@ int TickFct_BuzzerMusic(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_BM:
+            if (gameMode == 1) {
+                musicTime = 400;
+            }
+            else if (gameMode == 2) {
+                musicTime = 150;
+            }
+            ++count;
+            serial_println(5);
             break;
 
         case NOTE1:
+            if (gameMode == 1) {
+                musicTime = 400;
+            }
+            else if (gameMode == 2) {
+                musicTime = 150;
+            }
+            ++count;
+            serial_println(1);
             break;
 
         case NOTE2:
+            if (gameMode == 1) {
+                musicTime = 400;
+            }
+            else if (gameMode == 2) {
+                musicTime = 150;
+            }
+            ++count;
+            serial_println(2);
             break;
 
         case NOTE3:
+            if (gameMode == 1) {
+                musicTime = 450;
+            }
+            else if (gameMode == 2) {
+                musicTime = 150;
+            }
+            ++count;
+            serial_println(3);
             break;
         
         case NOTE4:
+            if (gameMode == 1) {
+                musicTime = 400;
+            }
+            else if (gameMode == 2) {
+                musicTime = 150;
+            }
+            ++count;
+            serial_println(4);
             break;
             
         default:
