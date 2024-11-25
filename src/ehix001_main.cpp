@@ -15,6 +15,10 @@
 
 uint8_t gameMode = 1; // 0 - title, 1 - walking, 2 - interaction, 3 - game over
 uint8_t roomNumber = 0; // 0 - main, 1 - , 2 - , 3 - 
+bool up = 0;
+bool down = 0;
+bool left = 0;
+bool right = 0;
 
 #define NUM_TASKS 6
 
@@ -71,7 +75,7 @@ int main(void) {
     DDRB = 0xFF;
     PORTB = 0x00;
 
-    // ADC_init();
+    ADC_init();
     serial_init(9600);
     SPI_INIT();
     ST7735_init();
@@ -127,12 +131,12 @@ int TickFct_PrintScreen(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_PS:
-            fillScreen(0x000);
+            // fillScreen(0x000);
             lcd_goto_xy(0,0);
             lcd_write_str("Press the select");
             lcd_goto_xy(1,0);
             lcd_write_str("button to start.");
-            printWizard(1);
+            // printWizard(1);
             state=WAIT;
             break;
 
@@ -141,10 +145,8 @@ int TickFct_PrintScreen(int state) {
             break;
         
         case WAIT2:
-            fillScreen(0x000);
-            printWizard(3);
-            ICR1 = 7999; //20ms pwm period
-            OCR1A =  3999;
+            // fillScreen(0x000);
+            // printWizard(3);
             state=WAIT3;
             break;
 
@@ -225,7 +227,24 @@ int TickFct_JoystickInput(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_JI:
+            up = false;
+            down = false;
+            right = false;
+            left = false;
+            if (ADC_read(4) > 700) {
+                down = true;
+            }
+            if (ADC_read(4) < 400) {
+                up = true;
+            }
+            if (ADC_read(5) > 700) {
+                left = true;
+            }
+            if (ADC_read(5) < 400) {
+                right = true;
+            }
             break;
+
         default:
             state = INIT_JI;
             break;
@@ -234,6 +253,7 @@ int TickFct_JoystickInput(int state) {
         //STATE ACTIONS
         case INIT_JI:
             break;
+    
         default:
             break;
     }
@@ -252,6 +272,18 @@ int TickFct_PlayerCoords(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_PC:
+            // if (up) {
+            //     serial_println("up");
+            // }
+            // if (down) {
+            //     serial_println("down");
+            // }
+            // if (left) {
+            //     serial_println("left");
+            // }
+            // if (right) {
+            //     serial_println("right");
+            // }
             break;
         default:
             break;
@@ -357,7 +389,6 @@ int TickFct_BuzzerMusic(int state) {
                 musicTime = 150;
             }
             ++count;
-            serial_println(5);
             break;
 
         case NOTE1:
@@ -368,7 +399,6 @@ int TickFct_BuzzerMusic(int state) {
                 musicTime = 150;
             }
             ++count;
-            serial_println(1);
             break;
 
         case NOTE2:
@@ -379,7 +409,6 @@ int TickFct_BuzzerMusic(int state) {
                 musicTime = 150;
             }
             ++count;
-            serial_println(2);
             break;
 
         case NOTE3:
@@ -390,7 +419,6 @@ int TickFct_BuzzerMusic(int state) {
                 musicTime = 150;
             }
             ++count;
-            serial_println(3);
             break;
         
         case NOTE4:
@@ -401,7 +429,6 @@ int TickFct_BuzzerMusic(int state) {
                 musicTime = 150;
             }
             ++count;
-            serial_println(4);
             break;
             
         default:
