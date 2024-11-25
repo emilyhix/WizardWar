@@ -1,7 +1,14 @@
+///////////////////////////////////////////////////////
+// CS 120B Custom Lab Project Demo #1 - ehix001_main.cpp
+// Author: Emily Hix
+// 11/22/24
+// Video Demo Link: https://youtu.be/SvAbyeLqzjc
+///////////////////////////////////////////////////////
 #include "timerISR.h"
 #include "helper.h"
 #include "periph.h"
 #include "spiAVR.h"
+#include "LCD.h"
 #include "ehix001_screenPrint.cpp"
 
 #include "serialATmega.h"
@@ -54,9 +61,9 @@ int main(void) {
     //Initialize PORTC as output
     DDRC = 0xFF;
     PORTC = 0x00;
-    //Initialize PORTD
-    DDRD = 0b00001000;
-    PORTD = 0b11110111;
+    //Initialize PORTD as output
+    DDRD = 0xFF;
+    PORTD = 0x00;
     //Initialize PORTB as output
     DDRB = 0xFF;
     PORTB = 0x00;
@@ -64,6 +71,7 @@ int main(void) {
     // ADC_init();
     SPI_INIT();
     ST7735_init();
+    lcd_init();
 
     //Initialize Buzzer
     // OCR0A = 128; //sets duty cycle to 50% since TOP is always 256
@@ -114,6 +122,7 @@ int TickFct_PrintScreen(int state) {
         //STATE TRANSITIONS
         case INIT_PS:
             fillScreen(0x000);
+            lcd_write_str("Test");
             printWizard(1);
             state=WAIT;
             break;

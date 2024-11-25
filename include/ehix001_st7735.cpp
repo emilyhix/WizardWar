@@ -1,3 +1,9 @@
+///////////////////////////////////////////////////////
+// CS 120B Custom Lab Project Demo #1 - ehix001_st7735.cpp
+// Author: Emily Hix
+// 11/22/24
+// Video Demo Link: https://youtu.be/SvAbyeLqzjc
+///////////////////////////////////////////////////////
 #ifndef ST7735_H
 #define ST7735_H
 
@@ -9,7 +15,7 @@
 
 void SendCommand(uint16_t command) {
     // set command mode
-    PORTB = SetBit(PORTB, 1, 0);
+    PORTC = SetBit(PORTC, 3, 0);
     // set SS pin to low
     PORTB = SetBit(PORTB, 2, 0);
     //send value
@@ -20,7 +26,7 @@ void SendCommand(uint16_t command) {
 
 void SendData(uint16_t data) {
     // set command mode
-    PORTB = SetBit(PORTB, 1, 1);
+    PORTC = SetBit(PORTC, 3, 1);
     // set SS pin to low
     PORTB = SetBit(PORTB, 2, 0);
     //send value
@@ -99,7 +105,7 @@ void ST7735_init() {
     _delay_ms(10);
     // MADCTL - Memory Data Access Control
     SendCommand(0x36);
-    SendData(0x20); // Set RGB mode (set bit 3 to 1)s
+    SendData(0x20); // Set RGB mode (set bit 3 to 1)
     _delay_ms(10);
     // DISPON - Display on
     SendCommand(0x29);

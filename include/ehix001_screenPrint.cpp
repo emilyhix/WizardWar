@@ -1,3 +1,9 @@
+///////////////////////////////////////////////////////
+// CS 120B Custom Lab Project Demo #1 - ehix001_screenPrint.cpp
+// Author: Emily Hix
+// 11/22/24
+// Video Demo Link: https://youtu.be/SvAbyeLqzjc
+///////////////////////////////////////////////////////
 #ifndef SCREENPRINT_H
 #define SCREENPRINT_H
 
