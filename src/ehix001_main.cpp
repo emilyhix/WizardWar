@@ -122,7 +122,10 @@ int TickFct_PrintScreen(int state) {
         //STATE TRANSITIONS
         case INIT_PS:
             fillScreen(0x000);
-            lcd_write_str("Test");
+            lcd_goto_xy(0,0);
+            lcd_write_str("Press the select");
+            lcd_goto_xy(1,0);
+            lcd_write_str("button to start.");
             printWizard(1);
             state=WAIT;
             break;
