@@ -9,18 +9,20 @@
 #include "periph.h"
 #include "spiAVR.h"
 #include "LCD.h"
-#include "ehix001_screenPrint.cpp"
-
+#include "ehix001_screenPrint.h"
 #include "serialATmega.h"
+#include "ehix001_queue.h"
 
-uint8_t gameMode = 1; // 0 - title, 1 - walking, 2 - interaction, 3 - game over
-uint8_t roomNumber = 0; // 0 - main, 1 - , 2 - , 3 - 
-bool up = 0;
-bool down = 0;
-bool left = 0;
-bool right = 0;
+uint8_t gameMode = 1; // 0 - title, 1 - room1, 2 - room2, 3 - room3
+uint8_t playerX = 2;
+uint8_t playerY = 5;
+unsigned char playerHealth = 50;
+struct Queue* up = createQueue(10);
+struct Queue* down = createQueue(10);
+struct Queue* left = createQueue(10);
+struct Queue* right = createQueue(10);
 
-#define NUM_TASKS 6
+#define NUM_TASKS 7
 
 int TickFct_PrintScreen(int);
 int TickFct_SelectButton(int);
@@ -28,20 +30,23 @@ int TickFct_JoystickInput(int);
 int TickFct_PlayerCoords(int);
 int TickFct_UpdateMode(int);
 int TickFct_BuzzerMusic(int);
+int TickFct_TextLCD(int);
 
-enum States_PrintScreen {INIT_PS, WAIT, WAIT2, WAIT3};
+enum States_PrintScreen {INIT_PS, WAIT1, WAIT2, WAIT3};
 enum States_SelectButton {INIT_SB, PRESS};
-enum States_JoystickInput {INIT_JI};
-enum States_PlayerCoords {INIT_PC};
+enum States_JoystickInput {INIT_JI, WAIT};
+enum States_PlayerCoords {UPDATE_PC};
 enum States_UpdateMode{INIT_UM};
 enum States_BuzzerMusic{INIT_BM, OFF, NOTE1, NOTE2, NOTE3, NOTE4};
+enum States_TextLCD{INIT_LCD, IDLE, ROOM1, ROOM2, ROOM3, YOU_WON};
 
-const unsigned long PrintScreenPeriod = 2000;
+const unsigned long PrintScreenPeriod = 200;
 const unsigned long SelectButtonPeriod = 200;
 const unsigned long JoystickInputPeriod = 500;
 const unsigned long PlayerCoordsPeriod = 200;
 const unsigned long UpdateModePeriod = 200;
 const unsigned long BuzzerMusicPeriod = 1;
+const unsigned long TextLCDPeriod = 500;
 const unsigned long GCD_PERIOD = 1;
 
 typedef struct _task{
@@ -61,6 +66,26 @@ void TimerISR() {
 		}
 		tasks[i].elapsedTime += GCD_PERIOD;
 	}
+}
+
+bool validMovement(unsigned char direction) {
+    // 1 - up
+    // 2 - down
+    // 3 - left
+    // 4 - right
+    if ((playerX <= 0) && (direction == 3)) {
+        return false;
+    }
+    else if ((playerX >= 5) && (direction == 4)) {
+        return false;
+    }
+    else if ((playerY <= 0) && (direction == 1)) {
+        return false;
+    }
+    else if ((playerY >= 5) && (direction == 2)) {
+        return false;
+    }
+    else return true;
 }
 
 int main(void) {
@@ -104,7 +129,7 @@ int main(void) {
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_JoystickInput;
     ++i;
-    tasks[i].state = INIT_PC;
+    tasks[i].state = UPDATE_PC;
     tasks[i].period = PlayerCoordsPeriod;
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_PlayerCoords;
@@ -118,6 +143,11 @@ int main(void) {
     tasks[i].period = BuzzerMusicPeriod;
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_BuzzerMusic;
+    ++i;
+    tasks[i].state = INIT_LCD;
+    tasks[i].period = TextLCDPeriod;
+    tasks[i].elapsedTime = tasks[i].period;
+    tasks[i].TickFct = &TickFct_TextLCD;
 
     TimerSet(GCD_PERIOD);
     TimerOn();
@@ -131,27 +161,19 @@ int TickFct_PrintScreen(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_PS:
-            // fillScreen(0x000);
-            lcd_goto_xy(0,0);
-            lcd_write_str("Press the select");
-            lcd_goto_xy(1,0);
-            lcd_write_str("button to start.");
-            // printWizard(1);
-            state=WAIT;
+            printPlayer(2,5);
+            printWizard(1);
+            state = WAIT1;
             break;
 
-        case WAIT:
-            state = WAIT2;
+        case WAIT1:
+            state = WAIT1;
             break;
         
         case WAIT2:
-            // fillScreen(0x000);
-            // printWizard(3);
-            state=WAIT3;
             break;
 
         case WAIT3:
-            state= INIT_PS;
             break;
         
         default:
@@ -163,7 +185,8 @@ int TickFct_PrintScreen(int state) {
         case INIT_PS:
             break;
         
-        case WAIT:
+        case WAIT1:
+            printWizard(gameMode);
             break;
 
         case WAIT2:
@@ -227,21 +250,30 @@ int TickFct_JoystickInput(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_JI:
-            up = false;
-            down = false;
-            right = false;
-            left = false;
             if (ADC_read(4) > 700) {
-                down = true;
+                enqueue(down, 1);
+                state = WAIT;
             }
             if (ADC_read(4) < 400) {
-                up = true;
+                enqueue(up, 1);
+                state = WAIT;
             }
             if (ADC_read(5) > 700) {
-                left = true;
+                enqueue(left, 1);
+                state = WAIT;
             }
             if (ADC_read(5) < 400) {
-                right = true;
+                enqueue(right, 1);
+                state = WAIT;
+            }
+            break;
+
+        case WAIT:
+            if (ADC_read(4) > 700 || ADC_read(4) < 400 || ADC_read(5) > 700 || ADC_read(5) < 400) {
+                state = WAIT;
+            }
+            else {
+                state = INIT_JI;
             }
             break;
 
@@ -253,7 +285,10 @@ int TickFct_JoystickInput(int state) {
         //STATE ACTIONS
         case INIT_JI:
             break;
-    
+        
+        case WAIT:
+            break;
+
         default:
             break;
     }
@@ -263,28 +298,58 @@ int TickFct_JoystickInput(int state) {
 int TickFct_PlayerCoords(int state) {
     switch (state) {
         //STATE TRANSITIONS
-        case INIT_PC:
+        case UPDATE_PC:
+            if (!(isEmpty(up))) {
+                if (validMovement(1)) {
+                    --playerY;
+                    fillScreen(0x0000);
+                    printPlayer(playerX, playerY);
+                }
+                else {
+                    ++gameMode;
+                    playerX = 2;
+                    playerY = 5;
+                    fillScreen(0x0000);
+                    printPlayer(playerX, playerY);
+                    printWizard(gameMode);
+                }
+                dequeue(up);
+            }
+            if (!(isEmpty(down))) {
+                if (validMovement(2)) {
+                    ++playerY;
+                    fillScreen(0x0000);
+                    printPlayer(playerX, playerY);
+                }
+                dequeue(down);
+            }
+            if (!(isEmpty(left))) {
+                if (validMovement(3)) {
+                    --playerX;
+                    fillScreen(0x0000);
+                    printPlayer(playerX, playerY);
+                }
+                dequeue(left);
+            }
+            if (!(isEmpty(right))) {
+                if (validMovement(4)) {
+                    ++playerX;
+                    fillScreen(0x0000);
+                    printPlayer(playerX, playerY);
+                }
+                dequeue(right);
+            }
             break;
+
         default:
-            state = INIT_PC;
+            state = UPDATE_PC;
             break;
     }
     switch(state) {
         //STATE ACTIONS
-        case INIT_PC:
-            // if (up) {
-            //     serial_println("up");
-            // }
-            // if (down) {
-            //     serial_println("down");
-            // }
-            // if (left) {
-            //     serial_println("left");
-            // }
-            // if (right) {
-            //     serial_println("right");
-            // }
+        case UPDATE_PC:
             break;
+
         default:
             break;
     }
@@ -431,6 +496,124 @@ int TickFct_BuzzerMusic(int state) {
             ++count;
             break;
             
+        default:
+            break;
+    }
+    return state;
+}
+
+int TickFct_TextLCD(int state) {
+    static uint8_t localState;
+
+    switch(state) {
+        //STATE TRANSITIONS
+        case INIT_LCD:
+            lcd_goto_xy(0,0);
+            lcd_write_str("Press the select");
+            lcd_goto_xy(1,0);
+            lcd_write_str("button to start.");
+            state = IDLE;
+            break;
+        
+        case IDLE:
+            if (localState != gameMode) {
+                localState = gameMode;
+                lcd_clear();
+                if (localState == 0) {
+                    //title
+                    state = INIT_LCD;
+                }
+                if (localState == 1) {
+                    // room 1
+                    state = ROOM1;
+                }
+                if (localState == 2) {
+                    // room 1
+                    state = ROOM2;
+                }
+                if (localState == 3) {
+                    // room 1
+                    state = ROOM3;
+                }
+            }
+            break;
+
+        case ROOM1:
+            lcd_goto_xy(0,0);
+            lcd_write_str("Castle Entrance");
+            lcd_goto_xy(1,0);
+            lcd_write_str("HP:");
+            if (playerHealth >= 10) {
+                lcd_write_character(playerHealth/10+48);
+                lcd_write_character(playerHealth % 10+48);
+            }
+            else {
+                lcd_write_character(playerHealth+48);
+            }
+            lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
+            state = IDLE;
+            break;
+
+        case ROOM2:
+            lcd_goto_xy(0,0);
+            lcd_write_str("Potions Room");
+            lcd_goto_xy(1,0);
+            lcd_write_str("HP:");
+            if (playerHealth >= 10) {
+                lcd_write_character(playerHealth/10+48);
+                lcd_write_character(playerHealth % 10+48);
+            }
+            else {
+                lcd_write_character(playerHealth+48);
+            }
+            lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
+            state = IDLE;
+            break;
+
+        case ROOM3:
+            lcd_goto_xy(0,0);
+            lcd_write_str("Observatory");
+            lcd_goto_xy(1,0);
+            lcd_write_str("HP:");
+            if (playerHealth >= 10) {
+                lcd_write_character(playerHealth/10+48);
+                lcd_write_character(playerHealth % 10+48);
+            }
+            else {
+                lcd_write_character(playerHealth+48);
+            }
+            lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
+            state = IDLE;
+            break;
+
+        case YOU_WON:
+            break;
+
+        default:
+            state = INIT_LCD;
+            break;
+    }
+    switch(state) {
+        //STATE ACTIONS
+        case INIT_LCD:
+            localState = gameMode;
+            break;
+
+        case IDLE:
+            break;
+
+        case ROOM1:
+            break;
+
+        case ROOM2:
+            break;
+
+        case ROOM3:
+            break;
+
+        case YOU_WON:
+            break;
+
         default:
             break;
     }

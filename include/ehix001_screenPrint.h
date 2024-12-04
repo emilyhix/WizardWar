@@ -10,7 +10,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
-#include "ehix001_st7735.cpp"
+#include "ehix001_st7735.h"
 
 #define WHITE 0xFFFF
 #define LIGHT_PURPLE 0x500F
@@ -31,8 +31,45 @@
 #define DARK_GREEN 0x86D3
 #define LIGHT_GREEN 0xB274
 
-void printPlayer(uint8_t direction) {
-    
+void printPlayer(uint8_t playerX, uint8_t playerY) {
+    int xBuffer = 0;
+    int yBuffer = 0;
+
+    if (playerX == 0) {
+        yBuffer = -42;
+    }
+    else if (playerX == 1) {
+        yBuffer = -21;
+    }
+    else if (playerX == 3) {
+        yBuffer = 21;
+    }
+    else if (playerX == 3) {
+        yBuffer = 21;
+    }
+    else if (playerX == 4) {
+        yBuffer = 42;
+    }
+    else if (playerX == 5) {
+        yBuffer = 63;
+    }
+
+    if (playerY == 4) {
+        xBuffer = -21;
+    }
+    else if (playerY == 3) {
+        xBuffer = -42;
+    }
+    else if (playerY == 2) {
+        xBuffer = -63;
+    }
+    else if (playerY == 1) {
+        xBuffer = -84;
+    }
+    else if (playerY == 0) {
+        xBuffer = -105;
+    }
+
     // ------------------------ DARK ROBE
         
         uint8_t darkRobe[55][2] = {{46, 105}, {47, 105}, {48, 105}, {45, 106}, {46, 106}, {44, 107}, {45, 107}, 
@@ -43,9 +80,9 @@ void printPlayer(uint8_t direction) {
         {47, 124}, {48, 124}, {53, 124}, {54, 124}, {47, 125}, {48, 125}, {52, 125}, {53, 125}};
 
         for (int i = 0; i < 55; ++i) {
-            uint8_t DRx = darkRobe[i][1];
-            uint8_t DRy = darkRobe[i][0];
-            createPixel(DRx+xBuffer,DRy+yBuffer, darkRobeColor);
+            int DRx = darkRobe[i][1];
+            int DRy = darkRobe[i][0];
+            createPixel(DRx+xBuffer,DRy+yBuffer, DARK_PURPLE);
         }
 
     // ------------------------
@@ -61,9 +98,9 @@ void printPlayer(uint8_t direction) {
         {49, 124},{50, 124},{51, 124},{52, 124}};
 
         for (int i = 0; i < 49; ++i) {
-            uint8_t LRx = lightRobe[i][1];
-            uint8_t LRy = lightRobe[i][0];
-            createPixel(LRx+xBuffer,LRy+yBuffer, lightRobeColor);
+            int LRx = lightRobe[i][1];
+            int LRy = lightRobe[i][0];
+            createPixel(LRx+xBuffer,LRy+yBuffer, LIGHT_PURPLE);
         }
 
     // // ------------------------
@@ -76,8 +113,8 @@ void printPlayer(uint8_t direction) {
                                 {52, 116},{50, 117}};
 
         for (int i = 0; i < 17; ++i) {
-            uint8_t Sx = skin[i][1];
-            uint8_t Sy = skin[i][0];
+            int Sx = skin[i][1];
+            int Sy = skin[i][0];
             createPixel(Sx+xBuffer,Sy+yBuffer, SKIN_COLOR);
         }
 
@@ -91,8 +128,8 @@ void printPlayer(uint8_t direction) {
                                 {52, 120}, {53, 120}, {52, 121}, {53, 121}, {53, 122}};
 
         for (int i = 0; i < 20; ++i) {
-            uint8_t Bx = beard[i][1];
-            uint8_t By = beard[i][0];
+            int Bx = beard[i][1];
+            int By = beard[i][0];
             createPixel(Bx+xBuffer,By+yBuffer, GREY);
         }
 
@@ -102,9 +139,9 @@ void printPlayer(uint8_t direction) {
         
         uint8_t eyeUp[1][2] = {{51,114}};
 
-        uint8_t EUx = eyeUp[1][1];
-        uint8_t EUy = eyeUp[1][0];
-        createPixel(EUx+xBuffer,EUy+yBuffer, EVIL_UP_EYE);
+        int EUx = eyeUp[1][1];
+        int EUy = eyeUp[1][0];
+        createPixel(EUx+xBuffer,EUy+yBuffer, UP_EYE);
         
     // // ------------------------
 
@@ -112,9 +149,9 @@ void printPlayer(uint8_t direction) {
 
         uint8_t eyeDown[1][2] = {{51,115}};
 
-        uint8_t EDx = eyeDown[1][1];
-        uint8_t EDy = eyeDown[1][0];
-        createPixel(EDx+xBuffer,EDy+yBuffer, EVIL_DOWN_EYE);
+        int EDx = eyeDown[1][1];
+        int EDy = eyeDown[1][0];
+        createPixel(EDx+xBuffer,EDy+yBuffer, DOWN_EYE);
 
     // ------------------------
 
@@ -125,8 +162,8 @@ void printPlayer(uint8_t direction) {
                                     {57, 123},{57, 124}};
 
         for (int i = 0; i < 12; ++i) {
-            uint8_t SLx = staffLight[i][1];
-            uint8_t SLy = staffLight[i][0];
+            int SLx = staffLight[i][1];
+            int SLy = staffLight[i][0];
             createPixel(SLx+xBuffer,SLy+yBuffer, LIGHT_BROWN);
         }
 
@@ -144,8 +181,8 @@ void printPlayer(uint8_t direction) {
                                     {56, 124}};
 
         for (int i = 0; i < 29; ++i) {
-            uint8_t SDx = staffDark[i][1];
-            uint8_t SDy = staffDark[i][0];
+            int SDx = staffDark[i][1];
+            int SDy = staffDark[i][0];
             createPixel(SDx+xBuffer,SDy+yBuffer, DARK_BROWN);
         }
 
@@ -162,24 +199,22 @@ void printWizard(uint8_t whichWizard) {
         // blue wizard
         lightRobeColor = LIGHT_BLUE;
         darkRobeColor = DARK_BLUE;
-        xBuffer = 0;
-        yBuffer = 0;
+        xBuffer = -63;
+        yBuffer = -21;
     }
     if (whichWizard == 2) {
         // green wizard
         lightRobeColor = LIGHT_GREEN;
         darkRobeColor = DARK_GREEN;
-        // xBuffer = 42;
-        yBuffer = -84;
-        xBuffer = -42;
+        yBuffer = 42;
+        xBuffer = -84;
     }
     if (whichWizard == 3) {
         // red wizard
         lightRobeColor = LIGHT_RED;
         darkRobeColor = DARK_RED;
-        // xBuffer = 42;
-        yBuffer = -21;
-        xBuffer = -42;
+        yBuffer = 42;
+        xBuffer = -21;
     }
 
     // ------------------------ DARK ROBE
