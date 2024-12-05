@@ -1,8 +1,9 @@
 ///////////////////////////////////////////////////////
-// CS 120B Custom Lab Project Demo #1 - ehix001_main.cpp
+// CS 120B Custom Lab Project Demo #2 - ehix001_main.cpp
 // Author: Emily Hix
-// 11/22/24
-// Video Demo Link: https://youtu.be/SvAbyeLqzjc
+// 12/4/2024
+// Video Demo 1 Link: https://youtu.be/SvAbyeLqzjc
+// Video Demo 2 Link: https://youtu.be/ZwP4u5FAlhQ
 ///////////////////////////////////////////////////////
 #include "timerISR.h"
 #include "helper.h"
@@ -10,10 +11,10 @@
 #include "spiAVR.h"
 #include "LCD.h"
 #include "ehix001_screenPrint.h"
-#include "serialATmega.h"
+// #include "serialATmega.h"
 #include "ehix001_queue.h"
 
-uint8_t gameMode = 1; // 0 - title, 1 - room1, 2 - room2, 3 - room3
+uint8_t gameMode = 0; // 0 - title, 1 - room1, 2 - room2, 3 - room3
 uint8_t playerX = 2;
 uint8_t playerY = 5;
 unsigned char playerHealth = 50;
@@ -101,7 +102,7 @@ int main(void) {
     PORTB = 0x00;
 
     ADC_init();
-    serial_init(9600);
+    // serial_init(9600);
     SPI_INIT();
     ST7735_init();
     lcd_init();
@@ -161,9 +162,11 @@ int TickFct_PrintScreen(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_PS:
-            printPlayer(2,5);
-            printWizard(1);
-            state = WAIT1;
+            if (gameMode == 1) {
+                printPlayer(2,5);
+                printWizard(1);
+                state = WAIT1;
+            }
             break;
 
         case WAIT1:
@@ -218,10 +221,7 @@ int TickFct_SelectButton(int state) {
                 state = PRESS;
             }
             else {
-                if (gameMode == 1) {
-                    gameMode = 2;
-                }
-                else {
+                if (gameMode == 0) {
                     gameMode = 1;
                 }
                 state = INIT_SB;
@@ -301,8 +301,8 @@ int TickFct_PlayerCoords(int state) {
         case UPDATE_PC:
             if (!(isEmpty(up))) {
                 if (validMovement(1)) {
+                    removePlayer(playerX, playerY);
                     --playerY;
-                    fillScreen(0x0000);
                     printPlayer(playerX, playerY);
                 }
                 else {
@@ -317,24 +317,24 @@ int TickFct_PlayerCoords(int state) {
             }
             if (!(isEmpty(down))) {
                 if (validMovement(2)) {
+                    removePlayer(playerX, playerY);
                     ++playerY;
-                    fillScreen(0x0000);
                     printPlayer(playerX, playerY);
                 }
                 dequeue(down);
             }
             if (!(isEmpty(left))) {
                 if (validMovement(3)) {
+                    removePlayer(playerX, playerY);
                     --playerX;
-                    fillScreen(0x0000);
                     printPlayer(playerX, playerY);
                 }
                 dequeue(left);
             }
             if (!(isEmpty(right))) {
                 if (validMovement(4)) {
+                    removePlayer(playerX, playerY);
                     ++playerX;
-                    fillScreen(0x0000);
                     printPlayer(playerX, playerY);
                 }
                 dequeue(right);
@@ -504,14 +504,26 @@ int TickFct_BuzzerMusic(int state) {
 
 int TickFct_TextLCD(int state) {
     static uint8_t localState;
+    static char startText1[50];
+    static char startText2[50];
+    static char CastleEntrance[50];
+    static char HP[50];
+    static char PotionsRoom[50];
+    static char Observatory[50];
+    sprintf(startText1, "Press the select");
+    sprintf(startText2, "button to start.");
+    sprintf(CastleEntrance, "Castle Entrance");
+    sprintf(HP, "HP:");
+    sprintf(PotionsRoom, "Potions Room");
+    sprintf(Observatory, "Observatory");
 
     switch(state) {
         //STATE TRANSITIONS
         case INIT_LCD:
             lcd_goto_xy(0,0);
-            lcd_write_str("Press the select");
+            lcd_write_str(startText1);
             lcd_goto_xy(1,0);
-            lcd_write_str("button to start.");
+            lcd_write_str(startText2);
             state = IDLE;
             break;
         
@@ -540,9 +552,9 @@ int TickFct_TextLCD(int state) {
 
         case ROOM1:
             lcd_goto_xy(0,0);
-            lcd_write_str("Castle Entrance");
+            lcd_write_str(CastleEntrance);
             lcd_goto_xy(1,0);
-            lcd_write_str("HP:");
+            lcd_write_str(HP);
             if (playerHealth >= 10) {
                 lcd_write_character(playerHealth/10+48);
                 lcd_write_character(playerHealth % 10+48);
@@ -556,9 +568,9 @@ int TickFct_TextLCD(int state) {
 
         case ROOM2:
             lcd_goto_xy(0,0);
-            lcd_write_str("Potions Room");
+            lcd_write_str(PotionsRoom);
             lcd_goto_xy(1,0);
-            lcd_write_str("HP:");
+            lcd_write_str(HP);
             if (playerHealth >= 10) {
                 lcd_write_character(playerHealth/10+48);
                 lcd_write_character(playerHealth % 10+48);
@@ -572,9 +584,9 @@ int TickFct_TextLCD(int state) {
 
         case ROOM3:
             lcd_goto_xy(0,0);
-            lcd_write_str("Observatory");
+            lcd_write_str(Observatory);
             lcd_goto_xy(1,0);
-            lcd_write_str("HP:");
+            lcd_write_str(HP);
             if (playerHealth >= 10) {
                 lcd_write_character(playerHealth/10+48);
                 lcd_write_character(playerHealth % 10+48);

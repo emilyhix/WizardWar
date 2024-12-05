@@ -1,8 +1,9 @@
 ///////////////////////////////////////////////////////
-// CS 120B Custom Lab Project Demo #1 - ehix001_st7735.cpp
+// CS 120B Custom Lab Project Demo #2 - ehix001_st7735.h
 // Author: Emily Hix
-// 11/22/24
-// Video Demo Link: https://youtu.be/SvAbyeLqzjc
+// 12/4/2024
+// Video Demo 1 Link: https://youtu.be/SvAbyeLqzjc
+// Video Demo 2 Link: https://youtu.be/ZwP4u5FAlhQ
 ///////////////////////////////////////////////////////
 #ifndef ST7735_H
 #define ST7735_H

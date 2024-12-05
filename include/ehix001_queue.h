@@ -9,8 +9,7 @@
  
 // A structure to represent a queue
 struct Queue {
-    int front, rear, size;
-    unsigned capacity;
+    int front, rear, size, capacity;
     int* array;
 };
  
