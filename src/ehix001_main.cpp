@@ -14,16 +14,20 @@
 // #include "serialATmega.h"
 #include "ehix001_queue.h"
 
-uint8_t gameMode = 0; // 0 - title, 1 - room1, 2 - room2, 3 - room3
+bool select = 0;
+uint8_t gameMode = 0; // 0 - title, 1 - room 1 (BLUE), 2 - room 2 (RED), 3 - combat BLUE, 4 - combat RED, 5 - you win, 6 - you lose
 uint8_t playerX = 2;
 uint8_t playerY = 5;
 unsigned char playerHealth = 50;
-struct Queue* up = createQueue(10);
-struct Queue* down = createQueue(10);
-struct Queue* left = createQueue(10);
-struct Queue* right = createQueue(10);
+struct Queue* up = createQueue(2);
+struct Queue* down = createQueue(2);
+struct Queue* left = createQueue(2);
+struct Queue* right = createQueue(2);
+struct Queue* changeRoom = createQueue(2);
+struct Queue* cursorUp = createQueue(2);
+struct Queue* cursorDown = createQueue(2);
 
-#define NUM_TASKS 7
+#define NUM_TASKS 8
 
 int TickFct_PrintScreen(int);
 int TickFct_SelectButton(int);
@@ -32,19 +36,22 @@ int TickFct_PlayerCoords(int);
 int TickFct_UpdateMode(int);
 int TickFct_BuzzerMusic(int);
 int TickFct_TextLCD(int);
+int TickFct_CursorPrint(int);
 
-enum States_PrintScreen {INIT_PS, WAIT1, WAIT2, WAIT3};
+enum States_PrintScreen {INIT_PS, IDLE_PS, TITLE_PS, ROOM1_PS, ROOM2_PS, COMBAT1_PS, COMBAT2_PS};
 enum States_SelectButton {INIT_SB, PRESS};
 enum States_JoystickInput {INIT_JI, WAIT};
 enum States_PlayerCoords {UPDATE_PC};
-enum States_UpdateMode{INIT_UM};
+enum States_CursorPrint {UPDATE_CURSOR};
+enum States_UpdateMode{INIT_UM, TITLE, OVERWORLD, COMBAT1, COMBAT2, WIN, LOSE};
 enum States_BuzzerMusic{INIT_BM, OFF, NOTE1, NOTE2, NOTE3, NOTE4};
-enum States_TextLCD{INIT_LCD, IDLE, ROOM1, ROOM2, ROOM3, YOU_WON};
+enum States_TextLCD{INIT_LCD, IDLE_LCD, ROOM1, ROOM2, ROOM3, YOU_WON};
 
 const unsigned long PrintScreenPeriod = 200;
 const unsigned long SelectButtonPeriod = 200;
 const unsigned long JoystickInputPeriod = 500;
 const unsigned long PlayerCoordsPeriod = 200;
+const unsigned long CursorPrintPeriod = 200;
 const unsigned long UpdateModePeriod = 200;
 const unsigned long BuzzerMusicPeriod = 1;
 const unsigned long TextLCDPeriod = 500;
@@ -149,6 +156,11 @@ int main(void) {
     tasks[i].period = TextLCDPeriod;
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_TextLCD;
+    ++i;
+    tasks[i].state = UPDATE_CURSOR;
+    tasks[i].period = CursorPrintPeriod;
+    tasks[i].elapsedTime = tasks[i].period;
+    tasks[i].TickFct = &TickFct_CursorPrint;
 
     TimerSet(GCD_PERIOD);
     TimerOn();
@@ -159,26 +171,58 @@ int main(void) {
 }
 
 int TickFct_PrintScreen(int state) {
+    static uint8_t localState;
+
     switch (state) {
         //STATE TRANSITIONS
         case INIT_PS:
-            if (gameMode == 1) {
-                printPlayer(2,5);
-                printWizard(1);
-                state = WAIT1;
+            state = TITLE_PS;
+            break;
+
+        case IDLE_PS:
+            if (localState != gameMode) {
+                localState = gameMode;
+                if (localState == 0) {
+                    state = TITLE_PS;
+                }
+                if (localState == 1) {
+                    state = ROOM1_PS;
+                }
+                if (localState == 2) {
+                    state = ROOM2_PS;
+                }
+                if (localState == 3) {
+                    state = COMBAT1_PS;
+                }
+                if (localState == 4) {
+                    state = COMBAT2_PS;
+                }
+            }
+            else {
+                state = IDLE_PS;
             }
             break;
 
-        case WAIT1:
-            state = WAIT1;
-            break;
-        
-        case WAIT2:
+        case TITLE_PS:
+            state = IDLE_PS;
             break;
 
-        case WAIT3:
+        case ROOM1_PS:
+            state = IDLE_PS;
             break;
-        
+
+        case ROOM2_PS:
+            state = IDLE_PS;
+            break;
+
+        case COMBAT1_PS:
+            state = IDLE_PS;
+            break;
+
+        case COMBAT2_PS:
+            state = IDLE_PS;
+            break;
+
         default:
             state = INIT_PS;
             break;
@@ -186,18 +230,44 @@ int TickFct_PrintScreen(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_PS:
+            localState = gameMode;
             break;
         
-        case WAIT1:
-            printWizard(gameMode);
+        case IDLE_PS:
             break;
 
-        case WAIT2:
+        case TITLE_PS:
+            fillScreen(0x0000); //clear screen
+            //printTitle
+            state = IDLE_PS;
             break;
 
-        case WAIT3:
+        case ROOM1_PS:
+            fillScreen(0x0000); //clear screen
+            printPlayer(2,5,0);
+            printWizard(0,1);
+            break;
+
+        case ROOM2_PS:
+            fillScreen(0x0000); //clear screen
+            printPlayer(2,5,0);
+            printWizard(0,2);
             break;
         
+        case COMBAT1_PS:
+            fillScreen(0x0000); //clear screen
+            printWizard(1,1);
+            printSpells();
+            printCursor(0, 0);
+            break;
+
+        case COMBAT2_PS:
+            fillScreen(0x0000); //clear screen
+            printWizard(1,2);
+            printSpells();
+            printCursor(0, 0);
+            break;
+
         default:
             break;
     }
@@ -221,9 +291,7 @@ int TickFct_SelectButton(int state) {
                 state = PRESS;
             }
             else {
-                if (gameMode == 0) {
-                    gameMode = 1;
-                }
+                select = 1;
                 state = INIT_SB;
             }
             break;
@@ -251,19 +319,33 @@ int TickFct_JoystickInput(int state) {
         //STATE TRANSITIONS
         case INIT_JI:
             if (ADC_read(4) > 700) {
-                enqueue(down, 1);
+                if ((gameMode == 1) || (gameMode == 2)) {
+                    enqueue(down, 1);
+                }
+                if ((gameMode == 3) || (gameMode == 4)) {
+                    enqueue(cursorDown, 1);
+                }
                 state = WAIT;
             }
             if (ADC_read(4) < 400) {
-                enqueue(up, 1);
+                if ((gameMode == 1) || (gameMode == 2)) {
+                    enqueue(up, 1);
+                }
+                if ((gameMode == 3) || (gameMode == 4)) {
+                    enqueue(cursorUp, 1);
+                }
                 state = WAIT;
             }
             if (ADC_read(5) > 700) {
-                enqueue(left, 1);
+                if ((gameMode == 1) || (gameMode == 2)) {
+                    enqueue(left, 1);
+                }
                 state = WAIT;
             }
             if (ADC_read(5) < 400) {
-                enqueue(right, 1);
+                if ((gameMode == 1) || (gameMode == 2)) {
+                    enqueue(right, 1);
+                }
                 state = WAIT;
             }
             break;
@@ -301,41 +383,40 @@ int TickFct_PlayerCoords(int state) {
         case UPDATE_PC:
             if (!(isEmpty(up))) {
                 if (validMovement(1)) {
-                    removePlayer(playerX, playerY);
+                    printPlayer(playerX, playerY, 1);
                     --playerY;
-                    printPlayer(playerX, playerY);
+                    printPlayer(playerX, playerY, 0);
                 }
                 else {
-                    ++gameMode;
-                    playerX = 2;
-                    playerY = 5;
-                    fillScreen(0x0000);
-                    printPlayer(playerX, playerY);
-                    printWizard(gameMode);
+                    if (isEmpty(changeRoom)) {
+                        enqueue(changeRoom, 1);
+                        playerX = 2;
+                        playerY = 5;
+                    }
                 }
                 dequeue(up);
             }
             if (!(isEmpty(down))) {
                 if (validMovement(2)) {
-                    removePlayer(playerX, playerY);
+                    printPlayer(playerX, playerY, 1);
                     ++playerY;
-                    printPlayer(playerX, playerY);
+                    printPlayer(playerX, playerY, 0);
                 }
                 dequeue(down);
             }
             if (!(isEmpty(left))) {
                 if (validMovement(3)) {
-                    removePlayer(playerX, playerY);
+                    printPlayer(playerX, playerY, 1);
                     --playerX;
-                    printPlayer(playerX, playerY);
+                    printPlayer(playerX, playerY, 0);
                 }
                 dequeue(left);
             }
             if (!(isEmpty(right))) {
                 if (validMovement(4)) {
-                    removePlayer(playerX, playerY);
+                    printPlayer(playerX, playerY, 1);
                     ++playerX;
-                    printPlayer(playerX, playerY);
+                    printPlayer(playerX, playerY, 0);
                 }
                 dequeue(right);
             }
@@ -360,7 +441,43 @@ int TickFct_UpdateMode(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_UM:
+            state = TITLE;
             break;
+
+        case TITLE:
+            if (select) {
+                gameMode = 1;
+                select = 0;
+                state = OVERWORLD;
+            }
+            break;
+
+        case OVERWORLD:
+            if (!isEmpty(changeRoom)) {
+                gameMode = 2;
+            }
+            if ((playerX == 1) && (playerY == 2) && (gameMode == 1)) {
+                gameMode = 3;
+                state = COMBAT1;
+            }
+            if ((playerX == 4) && (playerY == 4) && (gameMode == 2)) {
+                gameMode = 4;
+                state = COMBAT2;
+            }
+            break;
+
+        case COMBAT1:
+            break;
+
+        case COMBAT2:
+            break;
+
+        case WIN:
+            break;
+
+        case LOSE:
+            break;
+
         default:
             state = INIT_UM;
             break;
@@ -368,7 +485,27 @@ int TickFct_UpdateMode(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_UM:
+            gameMode = 0;
             break;
+
+        case TITLE:
+            break;
+
+        case OVERWORLD:
+            break;
+
+        case COMBAT1:
+            break;
+
+        case COMBAT2:
+            break;
+
+        case WIN:
+            break;
+
+        case LOSE:
+            break;
+             
         default:
             break;
     }
@@ -447,50 +584,50 @@ int TickFct_BuzzerMusic(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_BM:
-            if (gameMode == 1) {
+            if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
-            else if (gameMode == 2) {
+            else if ((gameMode == 3) || (gameMode == 4)) {
                 musicTime = 150;
             }
             ++count;
             break;
 
         case NOTE1:
-            if (gameMode == 1) {
+            if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
-            else if (gameMode == 2) {
+            else if ((gameMode == 3) || (gameMode == 4)) {
                 musicTime = 150;
             }
             ++count;
             break;
 
         case NOTE2:
-            if (gameMode == 1) {
+            if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
-            else if (gameMode == 2) {
+            else if ((gameMode == 3) || (gameMode == 4)) {
                 musicTime = 150;
             }
             ++count;
             break;
 
         case NOTE3:
-            if (gameMode == 1) {
+            if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 450;
             }
-            else if (gameMode == 2) {
+            else if ((gameMode == 3) || (gameMode == 4)) {
                 musicTime = 150;
             }
             ++count;
             break;
         
         case NOTE4:
-            if (gameMode == 1) {
+            if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
-            else if (gameMode == 2) {
+            else if ((gameMode == 3) || (gameMode == 4)) {
                 musicTime = 150;
             }
             ++count;
@@ -524,10 +661,10 @@ int TickFct_TextLCD(int state) {
             lcd_write_str(startText1);
             lcd_goto_xy(1,0);
             lcd_write_str(startText2);
-            state = IDLE;
+            state = IDLE_LCD;
             break;
         
-        case IDLE:
+        case IDLE_LCD:
             if (localState != gameMode) {
                 localState = gameMode;
                 lcd_clear();
@@ -563,7 +700,7 @@ int TickFct_TextLCD(int state) {
                 lcd_write_character(playerHealth+48);
             }
             lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
-            state = IDLE;
+            state = IDLE_LCD;
             break;
 
         case ROOM2:
@@ -579,7 +716,7 @@ int TickFct_TextLCD(int state) {
                 lcd_write_character(playerHealth+48);
             }
             lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
-            state = IDLE;
+            state = IDLE_LCD;
             break;
 
         case ROOM3:
@@ -595,7 +732,7 @@ int TickFct_TextLCD(int state) {
                 lcd_write_character(playerHealth+48);
             }
             lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
-            state = IDLE;
+            state = IDLE_LCD;
             break;
 
         case YOU_WON:
@@ -611,7 +748,7 @@ int TickFct_TextLCD(int state) {
             localState = gameMode;
             break;
 
-        case IDLE:
+        case IDLE_LCD:
             break;
 
         case ROOM1:
@@ -627,6 +764,40 @@ int TickFct_TextLCD(int state) {
             break;
 
         default:
+            break;
+    }
+    return state;
+}
+
+int TickFct_CursorPrint(int state) {
+    switch(state) {
+        //STATE TRANSITIONS
+        case UPDATE_CURSOR:
+            if ((gameMode == 3) || (gameMode == 4)) {
+                if (!isEmpty(cursorDown)) {
+                    printCursor(0, 1);
+                    printCursor(1, 0);
+                    dequeue(cursorDown);
+                }
+                if (!isEmpty(cursorUp)) {
+                    printCursor(1, 1);
+                    printCursor(0, 0);
+                    dequeue(cursorUp);
+                }
+            }
+            break;
+
+        default:
+            state = UPDATE_CURSOR;
+            break;
+    }
+    switch(state) {
+        //STATE ACTIONS
+        case UPDATE_CURSOR:
+            break;
+
+        default:
+            state = UPDATE_CURSOR;
             break;
     }
     return state;
