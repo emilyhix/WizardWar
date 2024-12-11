@@ -48,7 +48,7 @@ enum States_SelectButton {INIT_SB, PRESS_SB};
 enum States_JoystickInput {INIT_JI, WAIT};
 enum States_PlayerCoords {UPDATE_PC};
 enum States_CursorPrint {UPDATE_CURSOR};
-enum States_UpdateMode{INIT_UM, TITLE, OVERWORLD, COMBAT1, COMBAT2};
+enum States_UpdateMode{INIT_UM, TITLE, OVERWORLD, COMBAT1, COMBAT2, END};
 enum States_BuzzerMusic{INIT_BM, OFF, NOTE1, NOTE2, NOTE3, NOTE4};
 enum States_TextLCD{INIT_LCD, IDLE_LCD, DEFEATED, COMBAT1_LCD, COMBAT2_LCD, WS_LCD, ES_LCD, WIN_LCD, LOSE_LCD};
 enum States_Battle {INIT_BATTLE};
@@ -516,6 +516,7 @@ int TickFct_UpdateMode(int state) {
             }
             if (lose) {
                 gameMode = 6;
+                state = END;
             }
             break;
 
@@ -524,15 +525,21 @@ int TickFct_UpdateMode(int state) {
                 gameMode = 0;
                 state = TITLE;
             }
-            if ((!blueWizard) && (!redWizard)) {
+            if (!blueWizard && !redWizard) {
                 gameMode = 5;
-            }
-            if (!redWizard) {
-                gameMode = 2;
-                state = OVERWORLD;
+                state = END;
             }
             if (lose) {
                 gameMode = 6;
+                state = END;
+            }
+            break;
+
+        case END:
+            if (reset) {
+                reset = 0;
+                gameMode = 1;
+                state = TITLE;
             }
             break;
 
@@ -558,7 +565,10 @@ int TickFct_UpdateMode(int state) {
 
         case COMBAT2:
             break;
-             
+        
+        case END:
+            break;
+
         default:
             break;
     }
@@ -796,9 +806,6 @@ int TickFct_TextLCD(int state) {
             break;
 
         case COMBAT2_LCD:
-            if (!(gameMode == 3) || (gameMode == 4)) {
-                state = IDLE_LCD;
-            }
             if ((select) && (cursor == 2)) {
                 lcd_clear();
                 counter = 0;
@@ -818,11 +825,11 @@ int TickFct_TextLCD(int state) {
                 if (lose) {
                     state = LOSE_LCD;
                 }
-                else if (!(!blueWizard && !redWizard)) {
-                    state = DEFEATED;
+                else if (!blueWizard && !redWizard) {
+                    state = WIN_LCD;
                 }
                 else {
-                    state = WIN_LCD;
+                    state = DEFEATED;
                 }
             }
             break;
@@ -834,11 +841,11 @@ int TickFct_TextLCD(int state) {
                 if (lose) {
                     state = LOSE_LCD;
                 }
-                else if (!(blueWizard && redWizard)) {
-                    state = DEFEATED;
+                else if (!blueWizard && !redWizard) {
+                    state = WIN_LCD;
                 }
                 else {
-                    state = WIN_LCD;
+                    state = DEFEATED;
                 }
             }
             break;
