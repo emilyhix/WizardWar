@@ -31,7 +31,7 @@ struct Queue* changeRoom = createQueue(2);
 struct Queue* cursorUp = createQueue(2);
 struct Queue* cursorDown = createQueue(2);
 
-#define NUM_TASKS 9
+#define NUM_TASKS 10
 
 int TickFct_PrintScreen(int);
 int TickFct_SelectButton(int);
@@ -42,6 +42,7 @@ int TickFct_BuzzerMusic(int);
 int TickFct_TextLCD(int);
 int TickFct_CursorPrint(int);
 int TickFct_Battle(int);
+int TickFct_ResetButton(int);
 
 enum States_PrintScreen {INIT_PS, IDLE_PS, TITLE_PS, ROOM1_PS, ROOM2_PS, COMBAT1_PS, COMBAT2_PS};
 enum States_SelectButton {INIT_SB, PRESS_SB};
@@ -52,16 +53,18 @@ enum States_UpdateMode{INIT_UM, TITLE, OVERWORLD, COMBAT1, COMBAT2, END};
 enum States_BuzzerMusic{INIT_BM, OFF, NOTE1, NOTE2, NOTE3, NOTE4};
 enum States_TextLCD{INIT_LCD, IDLE_LCD, DEFEATED, COMBAT1_LCD, COMBAT2_LCD, WS_LCD, ES_LCD, WIN_LCD, LOSE_LCD};
 enum States_Battle {INIT_BATTLE};
+enum States_ResetButton {INIT_RB, PRESS_RB};
 
 const unsigned long PrintScreenPeriod = 200;
 const unsigned long SelectButtonPeriod = 200;
+const unsigned long ResetButtonPeriod = 200;
 const unsigned long JoystickInputPeriod = 200;
 const unsigned long PlayerCoordsPeriod = 200;
 const unsigned long CursorPrintPeriod = 200;
 const unsigned long UpdateModePeriod = 200;
 const unsigned long BuzzerMusicPeriod = 1;
 const unsigned long TextLCDPeriod = 200;
-const unsigned long BattlePeriod = 200;
+const unsigned long BattlePeriod = 100;
 const unsigned long GCD_PERIOD = 1;
 
 typedef struct _task{
@@ -174,6 +177,11 @@ int main(void) {
     tasks[i].period = BattlePeriod;
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_Battle;
+    ++i;
+    tasks[i].state = INIT_RB;
+    tasks[i].period = ResetButtonPeriod;
+    tasks[i].elapsedTime = tasks[i].period;
+    tasks[i].TickFct = &TickFct_ResetButton;
 
     TimerSet(GCD_PERIOD);
     TimerOn();
@@ -412,6 +420,9 @@ int TickFct_PlayerCoords(int state) {
             if (reset) {
                 playerX = 2;
                 playerY = 5;
+                if (!isEmpty(changeRoom)) {
+                    dequeue(changeRoom);
+                }
             }
             if (!(isEmpty(up))) {
                 if (validMovement(1)) {
@@ -486,6 +497,7 @@ int TickFct_UpdateMode(int state) {
 
         case OVERWORLD:
             if (reset) {
+                reset = 0;
                 gameMode = 0;
                 state = TITLE;
             }
@@ -507,6 +519,7 @@ int TickFct_UpdateMode(int state) {
 
         case COMBAT1:
             if (reset) {
+                reset = 0;
                 gameMode = 0;
                 state = TITLE;
             }
@@ -522,6 +535,7 @@ int TickFct_UpdateMode(int state) {
 
         case COMBAT2:
             if (reset) {
+                reset = 0;
                 gameMode = 0;
                 state = TITLE;
             }
@@ -538,7 +552,7 @@ int TickFct_UpdateMode(int state) {
         case END:
             if (reset) {
                 reset = 0;
-                gameMode = 1;
+                gameMode = 0;
                 state = TITLE;
             }
             break;
@@ -806,6 +820,10 @@ int TickFct_TextLCD(int state) {
             break;
 
         case COMBAT2_LCD:
+            if (reset) {
+                lcd_clear();
+                state = IDLE_LCD;
+            }
             if ((select) && (cursor == 2)) {
                 lcd_clear();
                 counter = 0;
@@ -1010,7 +1028,14 @@ int TickFct_Battle(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_BATTLE:
-            if (select) {
+            if (reset) {
+                PORTC = SetBit(PORTC, 0, 0);
+                PORTB = SetBit(PORTB, 4, 0);
+                blueWizard = 1;
+                redWizard = 1;
+                lose = 0;
+            }
+            if ((select) && ((gameMode == 3) || (gameMode == 4))) {
                 select = 0;
                 if ((cursor == 1) && (gameMode == 4)) {
                     lose = 1;
@@ -1038,4 +1063,44 @@ int TickFct_Battle(int state) {
             break;
     }
     return state;
+}
+
+int TickFct_ResetButton(int state) {
+    switch (state) {
+            //STATE TRANSITIONS
+            case INIT_RB:
+                if ((PINC>>2) & 0x01) {
+                    state = PRESS_RB;
+                }
+                else {
+                    state = INIT_RB;
+                }
+                break;
+            
+            case PRESS_RB:
+                if ((PINC>>2) & 0x01) {
+                    state = PRESS_RB;
+                }
+                else {
+                    reset = 1;
+                    state = INIT_RB;
+                }
+                break;
+            
+            default:
+                state = INIT_RB;
+                break;
+        }
+        switch(state) {
+            //STATE ACTIONS
+            case INIT_RB:
+                break;
+            
+            case PRESS_RB:
+                break;
+            
+            default:
+                break;
+        }
+        return state;  
 }
