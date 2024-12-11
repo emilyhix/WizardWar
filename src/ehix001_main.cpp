@@ -11,14 +11,18 @@
 #include "spiAVR.h"
 #include "LCD.h"
 #include "ehix001_screenPrint.h"
-// #include "serialATmega.h"
+#include "serialATmega.h"
 #include "ehix001_queue.h"
 
+bool reset = 0;
 bool select = 0;
+bool lose = 0;
+bool blueWizard = 1;
+bool redWizard = 1;
 uint8_t gameMode = 0; // 0 - title, 1 - room 1 (BLUE), 2 - room 2 (RED), 3 - combat BLUE, 4 - combat RED, 5 - you win, 6 - you lose
 uint8_t playerX = 2;
 uint8_t playerY = 5;
-unsigned char playerHealth = 50;
+uint8_t cursor = 1; // 1 - EARTH, 2 - WATER
 struct Queue* up = createQueue(2);
 struct Queue* down = createQueue(2);
 struct Queue* left = createQueue(2);
@@ -27,7 +31,7 @@ struct Queue* changeRoom = createQueue(2);
 struct Queue* cursorUp = createQueue(2);
 struct Queue* cursorDown = createQueue(2);
 
-#define NUM_TASKS 8
+#define NUM_TASKS 9
 
 int TickFct_PrintScreen(int);
 int TickFct_SelectButton(int);
@@ -37,24 +41,27 @@ int TickFct_UpdateMode(int);
 int TickFct_BuzzerMusic(int);
 int TickFct_TextLCD(int);
 int TickFct_CursorPrint(int);
+int TickFct_Battle(int);
 
 enum States_PrintScreen {INIT_PS, IDLE_PS, TITLE_PS, ROOM1_PS, ROOM2_PS, COMBAT1_PS, COMBAT2_PS};
-enum States_SelectButton {INIT_SB, PRESS};
+enum States_SelectButton {INIT_SB, PRESS_SB};
 enum States_JoystickInput {INIT_JI, WAIT};
 enum States_PlayerCoords {UPDATE_PC};
 enum States_CursorPrint {UPDATE_CURSOR};
-enum States_UpdateMode{INIT_UM, TITLE, OVERWORLD, COMBAT1, COMBAT2, WIN, LOSE};
+enum States_UpdateMode{INIT_UM, TITLE, OVERWORLD, COMBAT1, COMBAT2};
 enum States_BuzzerMusic{INIT_BM, OFF, NOTE1, NOTE2, NOTE3, NOTE4};
-enum States_TextLCD{INIT_LCD, IDLE_LCD, ROOM1, ROOM2, ROOM3, YOU_WON};
+enum States_TextLCD{INIT_LCD, IDLE_LCD, DEFEATED, COMBAT1_LCD, COMBAT2_LCD, WS_LCD, ES_LCD, WIN_LCD, LOSE_LCD};
+enum States_Battle {INIT_BATTLE};
 
 const unsigned long PrintScreenPeriod = 200;
 const unsigned long SelectButtonPeriod = 200;
-const unsigned long JoystickInputPeriod = 500;
+const unsigned long JoystickInputPeriod = 200;
 const unsigned long PlayerCoordsPeriod = 200;
 const unsigned long CursorPrintPeriod = 200;
 const unsigned long UpdateModePeriod = 200;
 const unsigned long BuzzerMusicPeriod = 1;
-const unsigned long TextLCDPeriod = 500;
+const unsigned long TextLCDPeriod = 200;
+const unsigned long BattlePeriod = 200;
 const unsigned long GCD_PERIOD = 1;
 
 typedef struct _task{
@@ -99,8 +106,8 @@ bool validMovement(unsigned char direction) {
 int main(void) {
 
     //Initialize PORTC
-    DDRC = 0x08;
-    PORTC = 0xF7;
+    DDRC = 0x09;
+    PORTC = 0xF6;
     //Initialize PORTD as output
     DDRD = 0xFF;
     PORTD = 0x00;
@@ -113,6 +120,7 @@ int main(void) {
     SPI_INIT();
     ST7735_init();
     lcd_init();
+    lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
 
     TCCR1A |= (1 << WGM11) | (1 << COM1A1); //COM1A1 sets it to channel A
     TCCR1B |= (1 << WGM12) | (1 << WGM13) | (1 << CS11); //CS11 sets the prescaler to be 8
@@ -161,6 +169,11 @@ int main(void) {
     tasks[i].period = CursorPrintPeriod;
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_CursorPrint;
+    ++i;
+    tasks[i].state = INIT_BATTLE;
+    tasks[i].period = BattlePeriod;
+    tasks[i].elapsedTime = tasks[i].period;
+    tasks[i].TickFct = &TickFct_Battle;
 
     TimerSet(GCD_PERIOD);
     TimerOn();
@@ -182,7 +195,7 @@ int TickFct_PrintScreen(int state) {
         case IDLE_PS:
             if (localState != gameMode) {
                 localState = gameMode;
-                if (localState == 0) {
+                if ((localState == 0) || (localState == 5) || (localState == 6)) {
                     state = TITLE_PS;
                 }
                 if (localState == 1) {
@@ -244,14 +257,24 @@ int TickFct_PrintScreen(int state) {
 
         case ROOM1_PS:
             fillScreen(0x0000); //clear screen
-            printPlayer(2,5,0);
-            printWizard(0,1);
+            if (blueWizard) {
+                printPlayer(2,5,0);
+                printWizard(0,1);
+            }
+            else {
+                printPlayer(playerX, playerY, 0);
+            }
             break;
 
         case ROOM2_PS:
             fillScreen(0x0000); //clear screen
-            printPlayer(2,5,0);
-            printWizard(0,2);
+            if (redWizard) {
+                printPlayer(2,5,0);
+                printWizard(0,2);
+            }
+            else {
+                printPlayer(playerX, playerY, 0);
+            }
             break;
         
         case COMBAT1_PS:
@@ -279,16 +302,16 @@ int TickFct_SelectButton(int state) {
         //STATE TRANSITIONS
         case INIT_SB:
             if ((PINC>>1) & 0x01) {
-                state = PRESS;
+                state = PRESS_SB;
             }
             else {
                 state = INIT_SB;
             }
             break;
         
-        case PRESS:
+        case PRESS_SB:
             if ((PINC>>1) & 0x01) {
-                state = PRESS;
+                state = PRESS_SB;
             }
             else {
                 select = 1;
@@ -305,7 +328,7 @@ int TickFct_SelectButton(int state) {
         case INIT_SB:
             break;
         
-        case PRESS:
+        case PRESS_SB:
             break;
         
         default:
@@ -318,12 +341,16 @@ int TickFct_JoystickInput(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case INIT_JI:
+            if (reset) {
+                cursor = 1;
+            }
             if (ADC_read(4) > 700) {
                 if ((gameMode == 1) || (gameMode == 2)) {
                     enqueue(down, 1);
                 }
                 if ((gameMode == 3) || (gameMode == 4)) {
                     enqueue(cursorDown, 1);
+                    cursor = 2;
                 }
                 state = WAIT;
             }
@@ -333,6 +360,7 @@ int TickFct_JoystickInput(int state) {
                 }
                 if ((gameMode == 3) || (gameMode == 4)) {
                     enqueue(cursorUp, 1);
+                    cursor = 1;
                 }
                 state = WAIT;
             }
@@ -381,6 +409,10 @@ int TickFct_PlayerCoords(int state) {
     switch (state) {
         //STATE TRANSITIONS
         case UPDATE_PC:
+            if (reset) {
+                playerX = 2;
+                playerY = 5;
+            }
             if (!(isEmpty(up))) {
                 if (validMovement(1)) {
                     printPlayer(playerX, playerY, 1);
@@ -453,29 +485,55 @@ int TickFct_UpdateMode(int state) {
             break;
 
         case OVERWORLD:
+            if (reset) {
+                gameMode = 0;
+                state = TITLE;
+            }
             if (!isEmpty(changeRoom)) {
                 gameMode = 2;
             }
-            if ((playerX == 1) && (playerY == 2) && (gameMode == 1)) {
+            if ((playerX == 1) && (playerY == 2) && (gameMode == 1) && (blueWizard)) {
                 gameMode = 3;
                 state = COMBAT1;
             }
-            if ((playerX == 4) && (playerY == 4) && (gameMode == 2)) {
+            if ((playerX == 4) && (playerY == 4) && (gameMode == 2) && (redWizard)) {
                 gameMode = 4;
                 state = COMBAT2;
+            }
+            if (lose) {
+                gameMode = 6;
             }
             break;
 
         case COMBAT1:
+            if (reset) {
+                gameMode = 0;
+                state = TITLE;
+            }
+            if (!blueWizard) {
+                gameMode = 1;
+                state = OVERWORLD;
+            }
+            if (lose) {
+                gameMode = 6;
+            }
             break;
 
         case COMBAT2:
-            break;
-
-        case WIN:
-            break;
-
-        case LOSE:
+            if (reset) {
+                gameMode = 0;
+                state = TITLE;
+            }
+            if ((!blueWizard) && (!redWizard)) {
+                gameMode = 5;
+            }
+            if (!redWizard) {
+                gameMode = 2;
+                state = OVERWORLD;
+            }
+            if (lose) {
+                gameMode = 6;
+            }
             break;
 
         default:
@@ -489,6 +547,7 @@ int TickFct_UpdateMode(int state) {
             break;
 
         case TITLE:
+            reset = 0;
             break;
 
         case OVERWORLD:
@@ -498,12 +557,6 @@ int TickFct_UpdateMode(int state) {
             break;
 
         case COMBAT2:
-            break;
-
-        case WIN:
-            break;
-
-        case LOSE:
             break;
              
         default:
@@ -584,6 +637,9 @@ int TickFct_BuzzerMusic(int state) {
     switch(state) {
         //STATE ACTIONS
         case INIT_BM:
+            if (!gameMode) {
+                ICR1 = 6078; //OFF
+            }
             if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
@@ -594,6 +650,9 @@ int TickFct_BuzzerMusic(int state) {
             break;
 
         case NOTE1:
+            if (!gameMode) {
+                ICR1 = 6078; //OFF
+            }
             if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
@@ -604,6 +663,9 @@ int TickFct_BuzzerMusic(int state) {
             break;
 
         case NOTE2:
+            if (!gameMode) {
+                ICR1 = 6078; //OFF
+            }
             if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
@@ -614,6 +676,9 @@ int TickFct_BuzzerMusic(int state) {
             break;
 
         case NOTE3:
+            if (!gameMode) {
+                ICR1 = 6078; //OFF
+            }
             if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 450;
             }
@@ -624,6 +689,9 @@ int TickFct_BuzzerMusic(int state) {
             break;
         
         case NOTE4:
+            if (!gameMode) {
+                ICR1 = 6078; //OFF
+            }
             if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
@@ -640,19 +708,39 @@ int TickFct_BuzzerMusic(int state) {
 }
 
 int TickFct_TextLCD(int state) {
+    static uint8_t counter;
     static uint8_t localState;
-    static char startText1[50];
-    static char startText2[50];
-    static char CastleEntrance[50];
-    static char HP[50];
-    static char PotionsRoom[50];
-    static char Observatory[50];
+    static char startText1[17];
+    static char startText2[17];
+    static char encounter1[17];
+    static char encounter2F[13];
+    static char encounter2W[14];
+    static char chooseSpell[16];
+    static char waterSpell[13];
+    static char earthSpell[13];
+    static char youUsed[13];
+    static char playerDied[14];
+    static char loseGame[15];
+    static char wizardsDead[17];
+    static char winGame[15];
+    static char defeated[17];
+    static char score[8];
+
     sprintf(startText1, "Press the select");
     sprintf(startText2, "button to start.");
-    sprintf(CastleEntrance, "Castle Entrance");
-    sprintf(HP, "HP:");
-    sprintf(PotionsRoom, "Potions Room");
-    sprintf(Observatory, "Observatory");
+    sprintf(encounter1, "You see the evil");
+    sprintf(encounter2F, "Fire Wizard!");
+    sprintf(encounter2W, "Water Wizard!");
+    sprintf(chooseSpell, "Choose a spell.");
+    sprintf(waterSpell, "Water Spell!");
+    sprintf(earthSpell, "Earth Spell!");
+    sprintf(youUsed, "You used the");
+    sprintf(playerDied, "You died! You");
+    sprintf(loseGame, "lost the game!");
+    sprintf(wizardsDead, "Both wizards are");
+    sprintf(winGame, "gone! You won!");
+    sprintf(defeated, "Wizard defeated!");
+    sprintf(score, "Score: ");
 
     switch(state) {
         //STATE TRANSITIONS
@@ -667,75 +755,104 @@ int TickFct_TextLCD(int state) {
         case IDLE_LCD:
             if (localState != gameMode) {
                 localState = gameMode;
-                lcd_clear();
                 if (localState == 0) {
-                    //title
+                    lcd_clear();
                     state = INIT_LCD;
                 }
                 if (localState == 1) {
-                    // room 1
-                    state = ROOM1;
+                    lcd_clear();
                 }
                 if (localState == 2) {
-                    // room 1
-                    state = ROOM2;
+                    lcd_clear();
                 }
                 if (localState == 3) {
-                    // room 1
-                    state = ROOM3;
+                    lcd_clear();
+                    state = COMBAT1_LCD;
+                }
+                if (localState == 4) {
+                    lcd_clear();
+                    state = COMBAT1_LCD;
+                }
+            }
+            else {
+                state = IDLE_LCD;
+            }
+            break;
+
+        case DEFEATED:
+            if (counter >= 5) {
+                lcd_clear();
+                counter = 0;
+                state = IDLE_LCD;
+            }
+            break;
+
+        case COMBAT1_LCD:
+            if (counter >= 5) {
+                counter = 0;
+                lcd_clear();
+                state = COMBAT2_LCD;
+            }
+            break;
+
+        case COMBAT2_LCD:
+            if (!(gameMode == 3) || (gameMode == 4)) {
+                state = IDLE_LCD;
+            }
+            if ((select) && (cursor == 2)) {
+                lcd_clear();
+                counter = 0;
+                state = WS_LCD;
+            }
+            if ((select) && (cursor == 1)) {
+                lcd_clear();
+                counter = 0;
+                state = ES_LCD;
+            }
+            break;
+
+        case WS_LCD:
+            if (counter >= 10) {
+                lcd_clear();
+                counter = 0;
+                if (lose) {
+                    state = LOSE_LCD;
+                }
+                else if (!(!blueWizard && !redWizard)) {
+                    state = DEFEATED;
+                }
+                else {
+                    state = WIN_LCD;
                 }
             }
             break;
 
-        case ROOM1:
-            lcd_goto_xy(0,0);
-            lcd_write_str(CastleEntrance);
-            lcd_goto_xy(1,0);
-            lcd_write_str(HP);
-            if (playerHealth >= 10) {
-                lcd_write_character(playerHealth/10+48);
-                lcd_write_character(playerHealth % 10+48);
+        case ES_LCD:
+            if (counter >= 10) {
+                lcd_clear();
+                counter = 0;
+                if (lose) {
+                    state = LOSE_LCD;
+                }
+                else if (!(blueWizard && redWizard)) {
+                    state = DEFEATED;
+                }
+                else {
+                    state = WIN_LCD;
+                }
             }
-            else {
-                lcd_write_character(playerHealth+48);
-            }
-            lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
-            state = IDLE_LCD;
             break;
 
-        case ROOM2:
-            lcd_goto_xy(0,0);
-            lcd_write_str(PotionsRoom);
-            lcd_goto_xy(1,0);
-            lcd_write_str(HP);
-            if (playerHealth >= 10) {
-                lcd_write_character(playerHealth/10+48);
-                lcd_write_character(playerHealth % 10+48);
+        case WIN_LCD:
+            if (counter >= 10) {
+                state = IDLE_LCD;
             }
-            else {
-                lcd_write_character(playerHealth+48);
-            }
-            lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
-            state = IDLE_LCD;
             break;
 
-        case ROOM3:
-            lcd_goto_xy(0,0);
-            lcd_write_str(Observatory);
-            lcd_goto_xy(1,0);
-            lcd_write_str(HP);
-            if (playerHealth >= 10) {
-                lcd_write_character(playerHealth/10+48);
-                lcd_write_character(playerHealth % 10+48);
+        case LOSE_LCD:
+            if (counter >= 10) {
+                state = IDLE_LCD;
             }
-            else {
-                lcd_write_character(playerHealth+48);
-            }
-            lcd_send_command(LCD_CMD_DISPLAY_NO_CURSOR);
-            state = IDLE_LCD;
-            break;
-
-        case YOU_WON:
             break;
 
         default:
@@ -749,18 +866,87 @@ int TickFct_TextLCD(int state) {
             break;
 
         case IDLE_LCD:
+            counter = 0;
             break;
 
-        case ROOM1:
+        case DEFEATED:
+            ++counter;
+            lcd_goto_xy(0,0);
+            lcd_write_str(defeated);
+            lcd_goto_xy(1,0);
+            lcd_write_str(score);
+            lcd_write_character('5');
+            lcd_write_character('0'); 
             break;
 
-        case ROOM2:
+        case COMBAT1_LCD:
+            ++counter;
+            lcd_goto_xy(0,0);
+            lcd_write_str(encounter1);
+            lcd_goto_xy(1,0);
+            if (gameMode == 3) {
+                lcd_write_str(encounter2W);
+            }
+            if (gameMode == 4) {
+                lcd_write_str(encounter2F);
+            }
             break;
 
-        case ROOM3:
+        case COMBAT2_LCD:
+            ++counter;
+            lcd_goto_xy(0,0);
+            lcd_write_str(chooseSpell);
             break;
 
-        case YOU_WON:
+        case WS_LCD:
+            ++counter;
+            lcd_goto_xy(0,0);
+            lcd_write_str(youUsed);
+            lcd_goto_xy(1,0);
+            lcd_write_str(waterSpell);
+            break;
+
+        case ES_LCD:
+            ++counter;
+            lcd_goto_xy(0,0);
+            lcd_write_str(youUsed);
+            lcd_goto_xy(1,0);
+            lcd_write_str(earthSpell);
+            break;
+
+        case WIN_LCD:
+            ++counter;
+            if (counter >= 5) {
+                lcd_goto_xy(0,0);
+                lcd_write_str(wizardsDead);
+                lcd_goto_xy(1,0);
+                lcd_write_str(winGame);
+            }
+            else {
+                lcd_clear();
+                lcd_write_str(score);
+                lcd_write_character('1');
+                lcd_write_character('0');
+                lcd_write_character('0');
+                lcd_write_character('!');
+                lcd_write_character('!');   
+            }
+            break;
+
+        case LOSE_LCD:
+            ++counter;
+            if (counter >= 5) {
+                lcd_goto_xy(0,0);
+                lcd_write_str(playerDied);
+                lcd_goto_xy(1,0);
+                lcd_write_str(loseGame);
+            }
+            else {
+                lcd_clear();
+                lcd_write_str(score);
+                lcd_write_character('0');
+                lcd_write_character('!');   
+            }
             break;
 
         default:
@@ -798,6 +984,50 @@ int TickFct_CursorPrint(int state) {
 
         default:
             state = UPDATE_CURSOR;
+            break;
+    }
+    return state;
+}
+
+int TickFct_Battle(int state) {
+    switch(state) {
+        //STATE TRANSITIONS
+        case INIT_BATTLE:
+            state = INIT_BATTLE;
+            break;
+
+        default:
+            state = INIT_BATTLE;
+            break;
+    }
+    switch(state) {
+        //STATE ACTIONS
+        case INIT_BATTLE:
+            if (select) {
+                select = 0;
+                if ((cursor == 1) && (gameMode == 4)) {
+                    lose = 1;
+                    PORTC = SetBit(PORTC, 0, 0);
+                    PORTB = SetBit(PORTB, 4, 0);
+                }
+                else if ((cursor == 1) && (gameMode == 3)) {
+                    blueWizard = 0;
+                    PORTC = SetBit(PORTC, 0, 1);
+                }
+                if ((cursor == 2) && (gameMode == 3)) {
+                    lose = 1;
+                    PORTC = SetBit(PORTC, 0, 0);
+                    PORTB = SetBit(PORTB, 4, 0);
+                }
+                else if ((cursor == 2) && (gameMode == 4)) {
+                    redWizard = 0;
+                    PORTB = SetBit(PORTB, 4, 1);
+
+                }
+            }
+            break;
+
+        default:
             break;
     }
     return state;
