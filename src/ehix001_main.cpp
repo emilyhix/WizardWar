@@ -50,7 +50,7 @@ enum States_JoystickInput {INIT_JI, WAIT};
 enum States_PlayerCoords {UPDATE_PC};
 enum States_CursorPrint {UPDATE_CURSOR};
 enum States_UpdateMode{INIT_UM, TITLE, OVERWORLD, COMBAT1, COMBAT2, END};
-enum States_BuzzerMusic{INIT_BM, OFF, NOTE1, NOTE2, NOTE3, NOTE4};
+enum States_BuzzerMusic{OFF, NOTE1, NOTE2, NOTE3, NOTE4, LOSE1, LOSE2, LOSE3, WIN1, WIN2, WIN3};
 enum States_TextLCD{INIT_LCD, IDLE_LCD, DEFEATED, COMBAT1_LCD, COMBAT2_LCD, WS_LCD, ES_LCD, WIN_LCD, LOSE_LCD};
 enum States_Battle {INIT_BATTLE};
 enum States_ResetButton {INIT_RB, PRESS_RB};
@@ -158,7 +158,7 @@ int main(void) {
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_UpdateMode;
     ++i;
-    tasks[i].state = INIT_BM;
+    tasks[i].state = OFF;
     tasks[i].period = BuzzerMusicPeriod;
     tasks[i].elapsedTime = tasks[i].period;
     tasks[i].TickFct = &TickFct_BuzzerMusic;
@@ -594,21 +594,38 @@ int TickFct_BuzzerMusic(int state) {
 
     switch (state) {
         //STATE TRANSITIONS
-        case INIT_BM:
-            if (count < musicTime) {
-                ICR1 = 7661; //130Hz ~ C3
-                OCR1A =  ICR1/2;
-                state = INIT_BM;
-            }
-            else {
+        case OFF:
+            if (!((gameMode == 0) || (gameMode == 5) || (gameMode == 6))) {
                 count = 0;
                 state = NOTE1;
             }
+            else {
+                ICR1 = 39999;
+                OCR1A =  39999;
+                state = OFF;
+            }
             break;
-            
+
         case NOTE1:
-            if (count < musicTime) {
-                ICR1 = 6078; //196Hz ~ G3
+            if ((gameMode == 0)) {
+                ICR1 = 39999;
+                OCR1A =  39999;
+                state = OFF;
+            }
+            else if ((gameMode == 5)) {
+                ICR1 = 7632; //C4
+                OCR1A =  ICR1/2;
+                musicTime = 500;
+                state = WIN1;
+            }
+            else if ((gameMode == 6)) {
+                ICR1 = 8129; //B3
+                OCR1A =  ICR1/2;
+                musicTime = 750;
+                state = LOSE1;
+            }
+            else if (count < musicTime) {
+                ICR1 = 7632; //C4
                 OCR1A =  ICR1/2;
                 state = NOTE1;
             }
@@ -617,10 +634,15 @@ int TickFct_BuzzerMusic(int state) {
                 state = NOTE2;
             }
             break;
-
+            
         case NOTE2:
-            if (count < musicTime) {
-                ICR1 = 5101; //261Hz ~ C4
+            if ((gameMode == 0)) {
+                ICR1 = 39999;
+                OCR1A =  39999;
+                state = OFF;
+            }
+            else if (count < musicTime) {
+                ICR1 = 6060; //E4
                 OCR1A =  ICR1/2;
                 state = NOTE2;
             }
@@ -631,8 +653,13 @@ int TickFct_BuzzerMusic(int state) {
             break;
 
         case NOTE3:
-            if (count < musicTime) {
-                ICR1 = 5730;
+            if ((gameMode == 0)) {
+                ICR1 = 39999;
+                OCR1A =  39999;
+                state = OFF;
+            }
+            else if (count < musicTime) {
+                ICR1 = 5713; //F4
                 OCR1A =  ICR1/2;
                 state = NOTE3;
             }
@@ -643,40 +670,104 @@ int TickFct_BuzzerMusic(int state) {
             break;
 
         case NOTE4:
-            if (count < musicTime) {
-                ICR1 = 6078; //OFF
+            if ((gameMode == 0)) {
+                ICR1 = 39999;
+                OCR1A =  39999;
+                state = OFF;
+            }
+            else if (count < musicTime) {
+                ICR1 = 6060; //E4
                 OCR1A =  ICR1/2;
                 state = NOTE4;
             }
             else {
                 count = 0;
-                state = INIT_BM;
+                state = NOTE1;
+            }
+            break;
+
+        case LOSE1:
+            if (count < musicTime) {
+                state = LOSE1;
+            }
+            else {
+                count = 0;
+                ICR1 = 9090; //A3
+                OCR1A =  ICR1/2;
+                state = LOSE2;
+            }
+            break;
+
+        case LOSE2:
+            if (count < musicTime) {
+                state = LOSE2;
+            }
+            else {
+                count = 0;
+                ICR1 = 10203; //G3
+                OCR1A =  ICR1/2;
+                state = LOSE3;
+            }
+            break;
+
+        case LOSE3:
+            if (count < musicTime) {
+                state = LOSE3;
+            }
+            else {
+                count = 0;
+                ICR1 = 11493; //F3
+                OCR1A =  ICR1/2;
+                state = OFF;
+            }
+            break;
+
+        case WIN1:
+            if (count < musicTime) {
+                state = WIN1;
+            }
+            else {
+                count = 0;
+                ICR1 = 6825; //D4
+                OCR1A =  ICR1/2;
+                state = WIN2;
+            }
+            break;
+
+        case WIN2:
+            if (count < musicTime) {
+                state = WIN2;
+            }
+            else {
+                count = 0;
+                ICR1 = 6060; //E4
+                OCR1A =  ICR1/2;
+                state = WIN3;
+            }
+            break;
+
+        case WIN3:
+            if (count < musicTime) {
+                state = WIN3;
+            }
+            else {
+                count = 0;
+                ICR1 = 5713; //F4
+                OCR1A =  ICR1/2;
+                state = OFF;
             }
             break;
 
         default:
-            state = INIT_BM;
+            state = OFF;
             break;
     }
     switch(state) {
         //STATE ACTIONS
-        case INIT_BM:
-            if (!gameMode) {
-                ICR1 = 6078; //OFF
-            }
-            if ((gameMode == 1) || (gameMode == 2)) {
-                musicTime = 400;
-            }
-            else if ((gameMode == 3) || (gameMode == 4)) {
-                musicTime = 150;
-            }
-            ++count;
+        case OFF:
             break;
 
         case NOTE1:
-            if (!gameMode) {
-                ICR1 = 6078; //OFF
-            }
             if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
@@ -687,9 +778,6 @@ int TickFct_BuzzerMusic(int state) {
             break;
 
         case NOTE2:
-            if (!gameMode) {
-                ICR1 = 6078; //OFF
-            }
             if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 400;
             }
@@ -700,9 +788,16 @@ int TickFct_BuzzerMusic(int state) {
             break;
 
         case NOTE3:
-            if (!gameMode) {
-                ICR1 = 6078; //OFF
+            if ((gameMode == 1) || (gameMode == 2)) {
+                musicTime = 400;
             }
+            else if ((gameMode == 3) || (gameMode == 4)) {
+                musicTime = 150;
+            }
+            ++count;
+            break;
+
+        case NOTE4:
             if ((gameMode == 1) || (gameMode == 2)) {
                 musicTime = 450;
             }
@@ -711,20 +806,31 @@ int TickFct_BuzzerMusic(int state) {
             }
             ++count;
             break;
-        
-        case NOTE4:
-            if (!gameMode) {
-                ICR1 = 6078; //OFF
-            }
-            if ((gameMode == 1) || (gameMode == 2)) {
-                musicTime = 400;
-            }
-            else if ((gameMode == 3) || (gameMode == 4)) {
-                musicTime = 150;
-            }
+
+        case LOSE1:
             ++count;
             break;
-            
+
+        case LOSE2:
+            ++count;
+            break;
+
+        case LOSE3:
+            ++count;
+            break;
+
+        case WIN1:
+            ++count;
+            break;
+
+        case WIN2:
+            ++count;
+            break;
+
+        case WIN3:
+            ++count;
+            break;
+
         default:
             break;
     }
