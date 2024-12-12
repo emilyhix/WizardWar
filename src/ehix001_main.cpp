@@ -1,9 +1,10 @@
 ///////////////////////////////////////////////////////
-// CS 120B Custom Lab Project Demo #2 - ehix001_main.cpp
+// CS 120B Custom Lab Project Final Demo - ehix001_main.cpp
 // Author: Emily Hix
-// 12/4/2024
+// 12/11/2024
 // Video Demo 1 Link: https://youtu.be/SvAbyeLqzjc
 // Video Demo 2 Link: https://youtu.be/ZwP4u5FAlhQ
+// Final Video Demo Link: https://youtu.be/S7kRFLz4B54
 ///////////////////////////////////////////////////////
 #include "timerISR.h"
 #include "helper.h"
@@ -11,7 +12,6 @@
 #include "spiAVR.h"
 #include "LCD.h"
 #include "ehix001_screenPrint.h"
-#include "serialATmega.h"
 #include "ehix001_queue.h"
 
 bool reset = 0;
@@ -19,10 +19,10 @@ bool select = 0;
 bool lose = 0;
 bool blueWizard = 1;
 bool redWizard = 1;
-uint8_t gameMode = 0; // 0 - title, 1 - room 1 (BLUE), 2 - room 2 (RED), 3 - combat BLUE, 4 - combat RED, 5 - you win, 6 - you lose
+uint8_t gameMode = 0;
 uint8_t playerX = 2;
 uint8_t playerY = 5;
-uint8_t cursor = 1; // 1 - EARTH, 2 - WATER
+uint8_t cursor = 1;
 struct Queue* up = createQueue(2);
 struct Queue* down = createQueue(2);
 struct Queue* left = createQueue(2);
@@ -259,8 +259,6 @@ int TickFct_PrintScreen(int state) {
 
         case TITLE_PS:
             fillScreen(0x0000); //clear screen
-            //printTitle
-            state = IDLE_PS;
             break;
 
         case ROOM1_PS:
